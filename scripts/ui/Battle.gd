@@ -163,6 +163,9 @@ func _do_enemy_action() -> void:
 
 func _victory() -> void:
 	_append("%s was defeated!" % enemy.get("name"))
+	# Testing aid: restore HP after wins so runs stay playable.
+	player["hp"] = int(player.get("max_hp", player.get("hp", 1)))
+	player["statuses"] = []
 	GameState.set_companion(player)
 	if is_boss:
 		GameState.mark_boss_defeated(str(enemy.get("template_id", enemy.get("id"))))

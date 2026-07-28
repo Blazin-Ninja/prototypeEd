@@ -107,6 +107,12 @@ custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 text = "A · Interact"
 
+[node name="HealBtn" type="Button" parent="HUD/Buttons"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 1, 0.7, 1)
+text = "HEAL (Test)"
+
 [node name="BBtn" type="Button" parent="HUD/Buttons"]
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
