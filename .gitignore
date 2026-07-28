@@ -4,6 +4,7 @@
 export/
 builds/
 *.apk
+!releases/*.apk
 *.aab
 *.so
 .import/
