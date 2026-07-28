@@ -129,9 +129,7 @@ func mark_boss_defeated(boss_id: String) -> void:
 	var next_id = region.get("next_region", null)
 	if next_id != null:
 		unlock_region(str(next_id))
-	# MVP shortcut: clearing Forest also unlocks the Hive finale while mid-regions stay stubs.
-	if region_id == "forest":
-		unlock_region("meteor_hive")
+		run["pending_travel_prompt"] = str(next_id)
 	autosave()
 
 func end_run(won: bool) -> Dictionary:

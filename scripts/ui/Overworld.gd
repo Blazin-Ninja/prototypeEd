@@ -52,9 +52,22 @@ func _ready() -> void:
 	$RegionPanel/Margin/VBox/CloseBtn.pressed.connect(func(): region_panel.visible = false)
 	_refresh_hud()
 	_show_intro_once()
+	call_deferred("_maybe_prompt_travel")
 
 func _on_stick(dir: Vector2) -> void:
 	_stick = dir
+
+func _maybe_prompt_travel() -> void:
+	var next_id = GameState.run.get("pending_travel_prompt", null)
+	if next_id == null or str(next_id) == "":
+		return
+	GameState.run["pending_travel_prompt"] = null
+	GameState.autosave()
+	var next_region := DataRegistry.get_region(str(next_id))
+	message.text = "Region cleared! %s is now open — travel when ready." % next_region.get("name", next_id)
+	await get_tree().create_timer(0.7).timeout
+	if is_inside_tree():
+		_open_region_travel()
 
 func _test_heal() -> void:
 	GameState.heal_companion_full()
@@ -145,7 +158,7 @@ func _show_intro_once() -> void:
 	message.text = "%s\n%s" % [region.get("name"), region.get("intro", "")]
 	await get_tree().create_timer(1.6).timeout
 	if is_inside_tree():
-		message.text = "Walk into visible creatures to battle. Use Heal anytime while testing."
+		message.text = "Walk into creatures to battle. Yellow camp heals. Red boss waits at the north path."
 
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
@@ -413,12 +426,12 @@ func _rebuild_regions() -> void:
 		btn.custom_minimum_size = Vector2(0, 48)
 		var lock := not unlocked.has(rid)
 		btn.text = str(r.get("name"))
-		if r.get("stub", false):
-			btn.text += " (stub)"
 		if lock:
 			btn.text += " — Locked"
 			btn.disabled = true
 		else:
+			if str(GameState.run.get("region_id", "")) == str(rid):
+				btn.text += " (here)"
 			btn.pressed.connect(_travel.bind(str(rid)))
 		region_list.add_child(btn)
 

@@ -37,7 +37,7 @@
       "map_width": 12,
       "map_height": 16,
       "grass_encounter_chance": 0.18,
-      "boss_id": null,
+      "boss_id": "solar_colossus",
       "boss_cell": {
         "x": 6,
         "y": 1
@@ -55,7 +55,7 @@
       "grass_color": "#d4a373",
       "path_color": "#a47148",
       "unlocked_by_default": false,
-      "stub": true
+      "stub": false
     },
     {
       "id": "frozen_mountains",
@@ -66,7 +66,7 @@
       "map_width": 12,
       "map_height": 16,
       "grass_encounter_chance": 0.16,
-      "boss_id": null,
+      "boss_id": "glacier_titan",
       "boss_cell": {
         "x": 6,
         "y": 1
@@ -84,7 +84,7 @@
       "grass_color": "#90e0ef",
       "path_color": "#caf0f8",
       "unlocked_by_default": false,
-      "stub": true
+      "stub": false
     },
     {
       "id": "alien_lab",
@@ -95,7 +95,7 @@
       "map_width": 12,
       "map_height": 16,
       "grass_encounter_chance": 0.2,
-      "boss_id": null,
+      "boss_id": "prime_chimera",
       "boss_cell": {
         "x": 6,
         "y": 1
@@ -113,7 +113,7 @@
       "grass_color": "#5a189a",
       "path_color": "#7b2cbf",
       "unlocked_by_default": false,
-      "stub": true
+      "stub": false
     },
     {
       "id": "meteor_hive",
