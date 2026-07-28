@@ -13,7 +13,7 @@ You bond with **one** companion for the entire run. Defeat enemies and choose to
 - Forest boss (Elder Treant) + Hive finale boss (Hive Heart)
 - Region stubs: Desert, Frozen Mountains, Alien Lab
 - Permadeath runs + account Evolution Token shop
-- Portrait mobile UI with virtual D-pad
+- Portrait mobile UI with virtual joystick
 
 ## Requirements
 
