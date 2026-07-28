@@ -13,6 +13,7 @@ const TEST_MODE := true ## Infinite heal + easier testing aids.
 
 @onready var map_draw: Control = $MapArea/MapDraw
 @onready var hud: Label = $HUD/Top/Info
+@onready var gold_label: Label = $HUD/Top/GoldRow/GoldLabel
 @onready var hp_bar: ProgressBar = $HUD/Top/HPBar
 @onready var message: Label = $HUD/Message
 @onready var region_panel: PanelContainer = $RegionPanel
@@ -31,6 +32,7 @@ var _save_cooldown := 0.0
 var _bob_t := 0.0
 var _wilds: Array = [] ## {creature, pos, vel, bob}
 var _boss_marker: Dictionary = {} ## visible boss on map if undefeated
+var _chest_gold: Dictionary = {} ## "x,y" -> gold amount for unopened chests
 var _facing: String = "down"
 var _walk_phase: float = 0.0
 var _moving := false
@@ -79,7 +81,11 @@ func _test_heal() -> void:
 
 func _load_region() -> void:
 	var region := GameState.current_region()
+	# Stable floor layout within a run so chests stay put after battles.
+	var floor_seed := int(GameState.run.get("seed", 1)) ^ str(region.get("id", "")).hash()
+	seed(floor_seed)
 	_map = MapGenerator.generate(region)
+	_apply_opened_chests()
 	_pos = _read_saved_pos()
 	_pos.x = clampf(_pos.x, 1.2, float(_map.width) - 1.2)
 	_pos.y = clampf(_pos.y, 1.2, float(_map.height) - 1.2)
@@ -92,6 +98,20 @@ func _load_region() -> void:
 	_spawn_wilds()
 	_setup_boss_marker()
 	map_draw.queue_redraw()
+
+func _apply_opened_chests() -> void:
+	_chest_gold.clear()
+	var region_id := str(GameState.run.get("region_id", ""))
+	var chests: Array = _map.get("chests", [])
+	for c in chests:
+		var cell := Vector2i(int(c.get("x", 0)), int(c.get("y", 0)))
+		if GameState.is_chest_opened(region_id, cell):
+			if cell.y >= 0 and cell.y < int(_map.height) and cell.x >= 0 and cell.x < int(_map.width):
+				_map.tiles[cell.y][cell.x] = MapGenerator.TILE_PATH
+		else:
+			_chest_gold["%d,%d" % [cell.x, cell.y]] = int(c.get("gold", 10))
+			if cell.y >= 0 and cell.y < int(_map.height) and cell.x >= 0 and cell.x < int(_map.width):
+				_map.tiles[cell.y][cell.x] = MapGenerator.TILE_CHEST
 
 func _read_saved_pos() -> Vector2:
 	var p: Dictionary = GameState.run.get("player_pos", {"x": 1.5, "y": 14.5})
@@ -176,7 +196,7 @@ func _show_intro_once() -> void:
 	message.text = "%s\n%s" % [region.get("name"), region.get("intro", "")]
 	await get_tree().create_timer(1.6).timeout
 	if is_inside_tree():
-		message.text = "Explore the dungeon floor. Bridges cross hazards. Yellow camp heals. Red boss waits deep ahead."
+		message.text = "Explore the dungeon. Open chests for gold. Bridges cross hazards. Camp heals — boss waits ahead."
 
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
@@ -187,6 +207,7 @@ func _refresh_hud() -> void:
 		c.get("hp", 0),
 		c.get("max_hp", 1)
 	]
+	gold_label.text = "Gold  %d" % GameState.get_gold()
 	hp_bar.max_value = float(c.get("max_hp", 1))
 	hp_bar.value = float(c.get("hp", 0))
 
@@ -378,6 +399,9 @@ func _draw_map() -> void:
 					map_draw.draw_rect(rect, Color(0.22, 0.22, 0.24))
 					map_draw.draw_circle(rect.get_center() + Vector2(-4, 2), 10.0, Color(0.35, 0.34, 0.36))
 					map_draw.draw_circle(rect.get_center() + Vector2(6, -3), 7.0, Color(0.4, 0.38, 0.4))
+				MapGenerator.TILE_CHEST:
+					map_draw.draw_rect(rect, path.darkened(0.15))
+					_draw_chest(rect.get_center(), true)
 				_:
 					map_draw.draw_rect(rect, Color(0.1, 0.1, 0.12))
 
@@ -421,6 +445,20 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("cancel"):
 		_on_b()
 
+func _draw_chest(center: Vector2, closed: bool) -> void:
+	var body := Rect2(center - Vector2(14, 8), Vector2(28, 18))
+	if closed:
+		map_draw.draw_rect(body, Color(0.55, 0.32, 0.12))
+		map_draw.draw_rect(Rect2(center - Vector2(14, 14), Vector2(28, 8)), Color(0.7, 0.42, 0.16))
+		map_draw.draw_rect(Rect2(center - Vector2(3, 4), Vector2(6, 8)), Color(0.95, 0.78, 0.25))
+		map_draw.draw_circle(center + Vector2(0, -2), 2.5, Color(1.0, 0.9, 0.45))
+		# Soft gold sparkle
+		var spark := 0.55 + 0.45 * sin(_bob_t * 3.0 + center.x * 0.01)
+		map_draw.draw_circle(center + Vector2(10, -12), 2.0, Color(1.0, 0.92, 0.4, spark))
+	else:
+		map_draw.draw_rect(body, Color(0.28, 0.18, 0.1))
+		map_draw.draw_rect(Rect2(center - Vector2(14, 16), Vector2(28, 7)), Color(0.4, 0.25, 0.12))
+
 func _on_enter_tile(tile: int) -> void:
 	match tile:
 		MapGenerator.TILE_CAMP:
@@ -430,12 +468,38 @@ func _on_enter_tile(tile: int) -> void:
 			GameState.autosave()
 		MapGenerator.TILE_EXIT:
 			_open_region_travel()
+		MapGenerator.TILE_CHEST:
+			_try_open_chest(_tile_at(_pos))
 		_:
 			pass
+
+func _try_open_chest(cell: Vector2i) -> bool:
+	if _tile_type(cell) != MapGenerator.TILE_CHEST:
+		return false
+	var region_id := str(GameState.run.get("region_id", ""))
+	if GameState.is_chest_opened(region_id, cell):
+		return false
+	var key := "%d,%d" % [cell.x, cell.y]
+	var amount := int(_chest_gold.get(key, randi_range(10, 25)))
+	GameState.mark_chest_opened(region_id, cell)
+	GameState.add_gold(amount)
+	_chest_gold.erase(key)
+	_map.tiles[cell.y][cell.x] = MapGenerator.TILE_PATH
+	message.text = "Chest opened! +%d gold." % amount
+	_refresh_hud()
+	map_draw.queue_redraw()
+	return true
 
 func _on_a() -> void:
 	if _busy:
 		return
+	# Prefer opening a chest underfoot / adjacent.
+	var here := _tile_at(_pos)
+	if _try_open_chest(here):
+		return
+	for d in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _try_open_chest(here + d):
+			return
 	# Prefer interacting with nearest wild within reach.
 	var nearest_i := -1
 	var nearest_d := 1.1
@@ -455,9 +519,10 @@ func _on_a() -> void:
 	_on_enter_tile(_tile_type(_tile_at(_pos)))
 
 func _on_b() -> void:
-	message.text = "Companion: %s | Mutations: %d | Wilds nearby: %d" % [
+	message.text = "Companion: %s | Mutations: %d | Gold: %d | Wilds: %d" % [
 		GameState.get_companion().get("name"),
 		GameState.get_companion().get("mutations", []).size(),
+		GameState.get_gold(),
 		_wilds.size()
 	]
 

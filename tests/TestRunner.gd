@@ -12,6 +12,7 @@ func _ready() -> void:
 	failed += _test_ability_upgrade()
 	failed += _test_flee_and_initiative()
 	failed += _test_map_walkable()
+	failed += _test_gold_chests()
 	failed += _test_progression_starters()
 	if failed == 0:
 		print("ALL TESTS PASSED")
@@ -95,7 +96,20 @@ func _test_map_walkable() -> int:
 				has_hazard = true
 	failed += _ok("has bridges", has_bridge)
 	failed += _ok("has hazards", has_hazard)
+	failed += _ok("has chests", map.get("chests", []).size() >= 3)
 	return failed
+
+func _test_gold_chests() -> int:
+	GameState.start_new_run("ember_pup")
+	var before := GameState.get_gold()
+	GameState.add_gold(25)
+	var f := 0
+	f += _ok("gold starts at 0", before == 0)
+	f += _ok("gold added", GameState.get_gold() == 25)
+	var cell := Vector2i(3, 4)
+	GameState.mark_chest_opened("forest", cell)
+	f += _ok("chest marked opened", GameState.is_chest_opened("forest", cell))
+	return f
 
 func _test_progression_starters() -> int:
 	var account := SaveService.load_account()

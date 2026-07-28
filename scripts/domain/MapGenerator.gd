@@ -14,6 +14,7 @@ const TILE_WATER := 8
 const TILE_VOID := 9
 const TILE_BRIDGE := 10
 const TILE_ROCK := 11
+const TILE_CHEST := 12
 
 static func generate(region: Dictionary) -> Dictionary:
 	var w := int(region.get("map_width", 36))
@@ -63,6 +64,8 @@ static func generate(region: Dictionary) -> Dictionary:
 	# Ensure camp/boss reachable: carve a guaranteed spine if needed.
 	_ensure_path(tiles, Vector2i(cx, cy), Vector2i(bx, by), w, h, hazard)
 
+	var chests: Array = _place_chests(tiles, region, Vector2i(cx, cy), Vector2i(bx, by), w, h)
+
 	return {
 		"width": w,
 		"height": h,
@@ -71,7 +74,8 @@ static func generate(region: Dictionary) -> Dictionary:
 		"boss": Vector2i(bx, by),
 		"exit": Vector2i(ex, ey),
 		"rooms": rooms,
-		"hazard": hazard
+		"hazard": hazard,
+		"chests": chests
 	}
 
 static func is_walkable(tile: int) -> bool:
@@ -97,7 +101,38 @@ static func tile_name(tile: int) -> String:
 		TILE_VOID: return "void"
 		TILE_BRIDGE: return "bridge"
 		TILE_ROCK: return "rock"
+		TILE_CHEST: return "chest"
 		_: return "empty"
+
+static func _place_chests(tiles: Array, region: Dictionary, camp: Vector2i, boss: Vector2i, w: int, h: int) -> Array:
+	var want := int(region.get("chest_count", 6))
+	want = clampi(want, 3, 12)
+	var region_idx := int(region.get("index", 1))
+	var gold_min := 8 + region_idx * 4
+	var gold_max := 18 + region_idx * 10
+	var candidates: Array = []
+	for y in range(1, h - 1):
+		for x in range(1, w - 1):
+			var t: int = int(tiles[y][x])
+			if t != TILE_PATH and t != TILE_GRASS and t != TILE_BRIDGE:
+				continue
+			if absi(x - camp.x) + absi(y - camp.y) < 5:
+				continue
+			if absi(x - boss.x) + absi(y - boss.y) < 4:
+				continue
+			candidates.append(Vector2i(x, y))
+	candidates.shuffle()
+	var chests: Array = []
+	var count := mini(want, candidates.size())
+	for i in count:
+		var cell: Vector2i = candidates[i]
+		tiles[cell.y][cell.x] = TILE_CHEST
+		chests.append({
+			"x": cell.x,
+			"y": cell.y,
+			"gold": randi_range(gold_min, gold_max)
+		})
+	return chests
 
 static func _hazard_tile(kind: String) -> int:
 	match kind:

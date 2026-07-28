@@ -50,7 +50,9 @@ func start_new_run(starter_id: String) -> void:
 		"bosses_defeated": [],
 		"seed": randi(),
 		"alive": true,
-		"steps": 0
+		"steps": 0,
+		"gold": 0,
+		"opened_chests": []
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
 	SaveService.save_account(account)
@@ -160,6 +162,29 @@ func end_run(won: bool) -> Dictionary:
 	run = {}
 	EventBus.run_ended.emit(won, tokens)
 	return last_run_report
+
+func get_gold() -> int:
+	return int(run.get("gold", 0))
+
+func add_gold(amount: int) -> int:
+	var next := maxi(0, get_gold() + amount)
+	run["gold"] = next
+	autosave()
+	return next
+
+func chest_key(region_id: String, cell: Vector2i) -> String:
+	return "%s:%d,%d" % [region_id, cell.x, cell.y]
+
+func is_chest_opened(region_id: String, cell: Vector2i) -> bool:
+	return run.get("opened_chests", []).has(chest_key(region_id, cell))
+
+func mark_chest_opened(region_id: String, cell: Vector2i) -> void:
+	var opened: Array = run.get("opened_chests", [])
+	var key := chest_key(region_id, cell)
+	if not opened.has(key):
+		opened.append(key)
+		run["opened_chests"] = opened
+		autosave()
 
 func buy_unlock(unlock_id: String) -> Dictionary:
 	return ProgressionSystem.purchase(account, unlock_id)
