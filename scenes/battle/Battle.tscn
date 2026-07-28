@@ -23,6 +23,13 @@ anchor_right = 1.0
 offset_bottom = 420.0
 color = Color(0.12, 0.08, 0.16, 0.55)
 
+[node name="FXLayer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
 [node name="Safe" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
@@ -133,7 +140,7 @@ text = "HP"
 horizontal_alignment = 1
 
 [node name="PView" type="Control" parent="Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol"]
-custom_minimum_size = Vector2(0, 150)
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_vertical = 3
 
