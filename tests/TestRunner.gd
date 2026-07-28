@@ -109,6 +109,15 @@ func _test_gold_chests() -> int:
 	var cell := Vector2i(3, 4)
 	GameState.mark_chest_opened("forest", cell)
 	f += _ok("chest marked opened", GameState.is_chest_opened("forest", cell))
+	# Wild roster persistence
+	GameState.set_wild_roster("forest", [{
+		"instance_id": "w1",
+		"creature": {"instance_id": "w1", "name": "Test"},
+		"x": 3.5, "y": 4.5, "alive": true
+	}])
+	GameState.mark_wild_defeated("forest", "w1")
+	var roster := GameState.get_wild_roster("forest")
+	f += _ok("wild marked defeated", roster.size() == 1 and not bool(roster[0].get("alive", true)))
 	return f
 
 func _test_progression_starters() -> int:

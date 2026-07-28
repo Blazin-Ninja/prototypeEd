@@ -52,7 +52,8 @@ func start_new_run(starter_id: String) -> void:
 		"alive": true,
 		"steps": 0,
 		"gold": 0,
-		"opened_chests": []
+		"opened_chests": [],
+		"wild_rosters": {}
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
 	SaveService.save_account(account)
@@ -104,16 +105,23 @@ func unlock_region(region_id: String) -> void:
 		run["unlocked_regions"] = unlocked
 	autosave()
 
-func begin_battle(enemy: Dictionary, is_boss: bool = false) -> void:
+func begin_battle(enemy: Dictionary, is_boss: bool = false, wild_roster_id: String = "") -> void:
 	pending_battle = {
 		"enemy": enemy,
 		"is_boss": is_boss,
-		"can_flee": not is_boss and not enemy.get("is_legendary", false)
+		"can_flee": not is_boss and not enemy.get("is_legendary", false),
+		"wild_roster_id": wild_roster_id,
+		"region_id": str(run.get("region_id", ""))
 	}
 	EventBus.battle_started.emit(enemy)
 
 func end_battle_victory(enemy: Dictionary) -> void:
 	run["battles_won"] = int(run.get("battles_won", 0)) + 1
+	# Remove defeated wild from the region's persistent roster.
+	if not bool(pending_battle.get("is_boss", false)):
+		var wid := str(pending_battle.get("wild_roster_id", enemy.get("instance_id", "")))
+		var rid := str(pending_battle.get("region_id", run.get("region_id", "")))
+		mark_wild_defeated(rid, wid)
 	pending_absorb = {"enemy": enemy}
 	autosave()
 	EventBus.battle_ended.emit("win")
@@ -185,6 +193,32 @@ func mark_chest_opened(region_id: String, cell: Vector2i) -> void:
 		opened.append(key)
 		run["opened_chests"] = opened
 		autosave()
+
+func get_wild_roster(region_id: String) -> Array:
+	var rosters: Dictionary = run.get("wild_rosters", {})
+	var list = rosters.get(region_id, null)
+	if list == null:
+		return []
+	return list
+
+func set_wild_roster(region_id: String, roster: Array) -> void:
+	var rosters: Dictionary = run.get("wild_rosters", {})
+	rosters[region_id] = roster
+	run["wild_rosters"] = rosters
+	autosave()
+
+func mark_wild_defeated(region_id: String, instance_id: String) -> void:
+	if instance_id == "":
+		return
+	var roster: Array = get_wild_roster(region_id)
+	var changed := false
+	for entry in roster:
+		if str(entry.get("instance_id", "")) == instance_id:
+			entry["alive"] = false
+			changed = true
+			break
+	if changed:
+		set_wild_roster(region_id, roster)
 
 func buy_unlock(unlock_id: String) -> Dictionary:
 	return ProgressionSystem.purchase(account, unlock_id)

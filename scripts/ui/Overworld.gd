@@ -30,12 +30,14 @@ var _busy := false
 var _last_tile: Vector2i = Vector2i(-999, -999)
 var _save_cooldown := 0.0
 var _bob_t := 0.0
-var _wilds: Array = [] ## {creature, pos, vel, bob}
+var _ambient_t := 0.0
+var _wilds: Array = [] ## {creature, pos, vel, bob, roster_id}
 var _boss_marker: Dictionary = {} ## visible boss on map if undefeated
 var _chest_gold: Dictionary = {} ## "x,y" -> gold amount for unopened chests
 var _facing: String = "down"
 var _walk_phase: float = 0.0
 var _moving := false
+var _contact_grace := 0.0
 
 func _ready() -> void:
 	if GameState.run.is_empty():
@@ -97,6 +99,7 @@ func _load_region() -> void:
 	_last_tile = _tile_at(_pos)
 	_spawn_wilds()
 	_setup_boss_marker()
+	_contact_grace = 1.25
 	map_draw.queue_redraw()
 
 func _apply_opened_chests() -> void:
@@ -139,13 +142,34 @@ func _grass_cells() -> Array:
 func _spawn_wilds() -> void:
 	_wilds.clear()
 	var region := GameState.current_region()
+	var region_id := str(region.get("id", ""))
 	if region.get("stub", false):
 		return
+	var roster: Array = GameState.get_wild_roster(region_id)
+	if roster.is_empty():
+		roster = _build_wild_roster(region)
+		GameState.set_wild_roster(region_id, roster)
+	for entry in roster:
+		if not bool(entry.get("alive", true)):
+			continue
+		var creature: Dictionary = entry.get("creature", {})
+		if creature.is_empty():
+			continue
+		var ang := randf() * TAU
+		_wilds.append({
+			"creature": creature,
+			"pos": Vector2(float(entry.get("x", 1.5)), float(entry.get("y", 1.5))),
+			"vel": Vector2(cos(ang), sin(ang)) * WILD_SPEED,
+			"bob": randf() * TAU,
+			"retarget": randf_range(1.2, 2.8),
+			"roster_id": str(entry.get("instance_id", creature.get("instance_id", "")))
+		})
+
+func _build_wild_roster(region: Dictionary) -> Array:
 	var cells := _grass_cells()
 	if cells.is_empty():
-		return
+		return []
 	var camp: Vector2i = _map.camp
-	# Keep the approach to camp clear so floors feel sparse and readable.
 	var filtered: Array = []
 	for cell in cells:
 		var c: Vector2i = cell
@@ -158,19 +182,39 @@ func _spawn_wilds() -> void:
 	want = clampi(want, 2, 10)
 	var count := mini(want, filtered.size())
 	filtered.shuffle()
+	var roster: Array = []
 	for i in count:
 		var cell: Vector2i = filtered[i]
 		var wild := EncounterSystem.roll_wild(str(region.get("id")), GameState.account)
 		if wild.is_empty():
 			continue
-		var ang := randf() * TAU
-		_wilds.append({
+		roster.append({
+			"instance_id": str(wild.get("instance_id", "")),
 			"creature": wild,
-			"pos": Vector2(float(cell.x) + 0.5, float(cell.y) + 0.5),
-			"vel": Vector2(cos(ang), sin(ang)) * WILD_SPEED,
-			"bob": randf() * TAU,
-			"retarget": randf_range(1.2, 2.8)
+			"x": float(cell.x) + 0.5,
+			"y": float(cell.y) + 0.5,
+			"alive": true
 		})
+	return roster
+
+func _persist_wild_positions() -> void:
+	var region_id := str(GameState.run.get("region_id", ""))
+	var roster: Array = GameState.get_wild_roster(region_id)
+	if roster.is_empty():
+		return
+	var by_id := {}
+	for w in _wilds:
+		by_id[str(w.get("roster_id", ""))] = w
+	for entry in roster:
+		if not bool(entry.get("alive", true)):
+			continue
+		var wid := str(entry.get("instance_id", ""))
+		if by_id.has(wid):
+			var live: Dictionary = by_id[wid]
+			var p: Vector2 = live["pos"]
+			entry["x"] = p.x
+			entry["y"] = p.y
+	GameState.set_wild_roster(region_id, roster)
 
 func _setup_boss_marker() -> void:
 	_boss_marker = {}
@@ -215,6 +259,9 @@ func _process(delta: float) -> void:
 	if _map.is_empty() or _busy or region_panel.visible:
 		_moving = false
 		return
+	_ambient_t += delta
+	if _contact_grace > 0.0:
+		_contact_grace = maxf(0.0, _contact_grace - delta)
 	_update_keyboard()
 	_update_wilds(delta)
 	var input_vec := _stick
@@ -233,6 +280,7 @@ func _process(delta: float) -> void:
 			_save_cooldown -= delta
 			if _save_cooldown <= 0.0:
 				_save_cooldown = SAVE_INTERVAL
+				_persist_wild_positions()
 				GameState.autosave()
 			var tile := _tile_at(_pos)
 			if tile != _last_tile:
@@ -265,7 +313,7 @@ func _update_wilds(delta: float) -> void:
 			w["retarget"] = randf_range(0.6, 1.4)
 
 func _check_contacts() -> void:
-	if _busy:
+	if _busy or _contact_grace > 0.0:
 		return
 	if not _boss_marker.is_empty():
 		var bp: Vector2 = _boss_marker["pos"]
@@ -277,19 +325,21 @@ func _check_contacts() -> void:
 		var wp: Vector2 = w["pos"]
 		if _pos.distance_to(wp) <= CONTACT_DIST:
 			var creature: Dictionary = w["creature"]
+			var rid := str(w.get("roster_id", creature.get("instance_id", "")))
 			_wilds.remove_at(i)
-			_start_battle(creature, false)
+			_start_battle(creature, false, rid)
 			return
 
-func _start_battle(creature: Dictionary, is_boss: bool) -> void:
+func _start_battle(creature: Dictionary, is_boss: bool, roster_id: String = "") -> void:
 	if _busy:
 		return
 	_busy = true
 	_stick = Vector2.ZERO
+	_persist_wild_positions()
 	message.text = "%s blocks your path!" % creature.get("name", "Enemy")
 	GameState.autosave()
 	await get_tree().create_timer(0.25).timeout
-	GameState.begin_battle(creature, is_boss)
+	GameState.begin_battle(creature, is_boss, roster_id)
 	get_tree().change_scene_to_file("res://scenes/battle/Battle.tscn")
 
 func _update_keyboard() -> void:
@@ -358,7 +408,7 @@ func _draw_map() -> void:
 	var min_y := clampi(int((-origin.y) / TILE) - pad, 0, map_h - 1)
 	var max_x := clampi(int((map_draw.size.x - origin.x) / TILE) + pad, 0, map_w - 1)
 	var max_y := clampi(int((map_draw.size.y - origin.y) / TILE) + pad, 0, map_h - 1)
-	var pulse := 0.5 + 0.5 * sin(_bob_t * 2.2)
+	var pulse := 0.5 + 0.5 * sin(_ambient_t * 1.1)
 	for y in range(min_y, max_y + 1):
 		for x in range(min_x, max_x + 1):
 			var t: int = tiles[y][x]
@@ -377,16 +427,25 @@ func _draw_map() -> void:
 				MapGenerator.TILE_EXIT:
 					map_draw.draw_rect(rect, Color(0.3, 0.55, 0.85))
 				MapGenerator.TILE_LAVA:
-					var lava := Color(0.75 + 0.15 * pulse, 0.22, 0.05)
+					# Stable base color + tiny slow shimmer (not walk-synced).
+					var lava := Color(0.78, 0.24, 0.06)
 					map_draw.draw_rect(rect, lava)
-					map_draw.draw_circle(rect.get_center() + Vector2(sin(x + _bob_t) * 4.0, cos(y + _bob_t) * 3.0), 4.0, Color(1.0, 0.7, 0.2, 0.45))
+					var shimmer := 0.25 + 0.2 * sin(_ambient_t * 1.4 + float(x) * 0.35 + float(y) * 0.2)
+					map_draw.draw_circle(rect.get_center(), 5.0, Color(1.0, 0.65, 0.15, shimmer))
 				MapGenerator.TILE_WATER:
-					var water := Color(0.12, 0.35 + 0.1 * pulse, 0.55)
+					# Static water fill — no per-frame color flash while walking.
+					var water := Color(0.12, 0.38, 0.55)
 					map_draw.draw_rect(rect, water)
-					map_draw.draw_line(rect.position + Vector2(6, 18), rect.position + Vector2(34, 14), Color(0.55, 0.8, 0.95, 0.35), 2.0)
+					var wave_y := 16.0 + sin(_ambient_t * 1.2 + float(x) * 0.4) * 2.0
+					map_draw.draw_line(
+						rect.position + Vector2(6, wave_y),
+						rect.position + Vector2(40, wave_y - 2.0),
+						Color(0.55, 0.8, 0.95, 0.28),
+						2.0
+					)
 				MapGenerator.TILE_VOID:
 					map_draw.draw_rect(rect, Color(0.08, 0.02, 0.14))
-					map_draw.draw_circle(rect.get_center(), 8.0 + pulse * 3.0, Color(0.35, 0.05, 0.45, 0.55))
+					map_draw.draw_circle(rect.get_center(), 9.0, Color(0.35, 0.05, 0.45, 0.4 + 0.15 * pulse))
 				MapGenerator.TILE_BRIDGE:
 					map_draw.draw_rect(rect, Color(0.35, 0.22, 0.12))
 					# Plank lines
@@ -453,7 +512,7 @@ func _draw_chest(center: Vector2, closed: bool) -> void:
 		map_draw.draw_rect(Rect2(center - Vector2(3, 4), Vector2(6, 8)), Color(0.95, 0.78, 0.25))
 		map_draw.draw_circle(center + Vector2(0, -2), 2.5, Color(1.0, 0.9, 0.45))
 		# Soft gold sparkle
-		var spark := 0.55 + 0.45 * sin(_bob_t * 3.0 + center.x * 0.01)
+		var spark := 0.55 + 0.45 * sin(_ambient_t * 2.0 + center.x * 0.01)
 		map_draw.draw_circle(center + Vector2(10, -12), 2.0, Color(1.0, 0.92, 0.4, spark))
 	else:
 		map_draw.draw_rect(body, Color(0.28, 0.18, 0.1))
@@ -509,9 +568,11 @@ func _on_a() -> void:
 			nearest_d = d
 			nearest_i = i
 	if nearest_i >= 0:
-		var creature: Dictionary = _wilds[nearest_i]["creature"]
+		var nearest: Dictionary = _wilds[nearest_i]
+		var creature: Dictionary = nearest["creature"]
+		var rid := str(nearest.get("roster_id", creature.get("instance_id", "")))
 		_wilds.remove_at(nearest_i)
-		_start_battle(creature, false)
+		_start_battle(creature, false, rid)
 		return
 	if not _boss_marker.is_empty() and _pos.distance_to(_boss_marker["pos"]) < 1.2:
 		_start_battle(_boss_marker["creature"], true)
