@@ -239,16 +239,18 @@ func _show_intro_once() -> void:
 	message.text = "%s\n%s" % [region.get("name"), region.get("intro", "")]
 	await get_tree().create_timer(1.6).timeout
 	if is_inside_tree():
-		message.text = "Explore the dungeon. Activate obelisks for special fights. Camp heals — boss waits ahead."
+		message.text = "Explore the dungeon. Activate obelisks for special fights. Bond Shards heal in battle (costs a turn)."
 
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
 	var region := GameState.current_region()
-	hud.text = "%s  |  %s  HP %d/%d" % [
+	hud.text = "%s  |  %s  HP %d/%d  |  Shards %d/%d" % [
 		region.get("name", "?"),
 		c.get("name", "?"),
 		c.get("hp", 0),
-		c.get("max_hp", 1)
+		c.get("max_hp", 1),
+		GameState.get_bond_shards(),
+		GameState.BOND_SHARD_CAP
 	]
 	hp_bar.max_value = float(c.get("max_hp", 1))
 	hp_bar.value = float(c.get("hp", 0))
@@ -581,9 +583,10 @@ func _on_a() -> void:
 	_on_enter_tile(_tile_type(_tile_at(_pos)))
 
 func _on_b() -> void:
-	message.text = "Companion: %s | Mutations: %d | Wilds: %d" % [
+	message.text = "Companion: %s | Mutations: %d | Shards: %d | Wilds: %d" % [
 		GameState.get_companion().get("name"),
 		GameState.get_companion().get("mutations", []).size(),
+		GameState.get_bond_shards(),
 		_wilds.size()
 	]
 

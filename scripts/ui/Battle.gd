@@ -19,14 +19,13 @@ extends Control
 @onready var fx_layer: Control = $FXLayer
 @onready var heal_btn: Button = $Safe/VBox/Actions/HealBtn
 
-const TEST_MODE := true ## Infinite battle heal for playtesting.
-
 var player: Dictionary = {}
 var enemy: Dictionary = {}
 var can_flee := true
 var busy := false
 var is_boss := false
 var _anim_t := 0.0
+var _pending_shard_drop_log := ""
 
 # Motion / hit feedback
 var _player_lunge := 0.0
@@ -63,22 +62,78 @@ func _ready() -> void:
 	$Safe/VBox/Actions/FightBtn.pressed.connect(_show_abilities)
 	$Safe/VBox/Actions/FleeBtn.pressed.connect(_flee)
 	$Safe/VBox/Actions/FleeBtn.disabled = not can_flee
-	heal_btn.visible = TEST_MODE
-	heal_btn.pressed.connect(_test_heal)
+	heal_btn.pressed.connect(_use_bond_shard)
 	_refresh()
 	var intro := "%s wants to battle!" % enemy.get("name", "Enemy")
 	if is_boss:
 		intro = "[b]BOSS[/b] — %s blocks the path!" % enemy.get("name", "Enemy")
+	elif enemy.get("is_obelisk_guardian", false):
+		intro = "[b]OBELISK[/b] — %s answers the call!" % enemy.get("name", "Guardian")
 	_append(intro)
 
-func _test_heal() -> void:
-	if not TEST_MODE or busy:
+func _use_bond_shard() -> void:
+	if busy:
 		return
-	player["hp"] = int(player.get("max_hp", player.get("hp", 1)))
-	player["statuses"] = []
+	busy = true
+	ability_list.visible = false
+	_set_actions_enabled(false)
+
+	# Stunned: the attempt spends the turn, but no shard is consumed.
+	if not CombatSystem.can_act(player):
+		_append("%s is stunned and can't move!" % player.get("name"))
+		CombatSystem.clear_stun(player)
+		_refresh()
+		await get_tree().create_timer(0.2).timeout
+		await _finish_player_action_turn()
+		return
+
+	if not GameState.can_use_bond_shard():
+		_append("No Bond Shards left.")
+		busy = false
+		_set_actions_enabled(true)
+		return
+	if int(player.get("hp", 0)) >= int(player.get("max_hp", 1)):
+		_append("Already at full health.")
+		busy = false
+		_set_actions_enabled(true)
+		return
+	if not GameState.consume_bond_shard():
+		_append("No Bond Shards left.")
+		busy = false
+		_set_actions_enabled(true)
+		return
+	var res := CombatSystem.use_bond_shard(player)
+	if not bool(res.get("ok", false)):
+		# Refund if heal somehow failed after consume.
+		GameState.set_bond_shards(GameState.get_bond_shards() + 1)
+		_append(str(res.get("log", "Bond Shard failed.")))
+		busy = false
+		_set_actions_enabled(true)
+		_refresh()
+		return
+	_append(str(res.get("log", "Used a Bond Shard.")))
 	GameState.set_companion(player)
 	_refresh()
-	_append("[Test] Companion fully healed.")
+	await get_tree().create_timer(0.25).timeout
+	await _finish_player_action_turn()
+
+func _finish_player_action_turn() -> void:
+	if int(player.get("hp", 0)) > 0 and int(enemy.get("hp", 0)) > 0:
+		await _do_enemy_action()
+	for log in CombatSystem.apply_end_of_turn_statuses(player):
+		_append(str(log))
+	for log in CombatSystem.apply_end_of_turn_statuses(enemy):
+		_append(str(log))
+	GameState.set_companion(player)
+	_refresh()
+	if int(enemy.get("hp", 0)) <= 0:
+		await _victory()
+		return
+	if int(player.get("hp", 0)) <= 0:
+		await _defeat()
+		return
+	busy = false
+	_set_actions_enabled(true)
 
 func _process(delta: float) -> void:
 	_anim_t += delta
@@ -279,10 +334,16 @@ func _refresh() -> void:
 	player_hp.value = float(player.get("hp", 0))
 	enemy_hp.max_value = float(enemy.get("max_hp", 1))
 	enemy_hp.value = float(enemy.get("hp", 0))
-	player_hp_text.text = "HP %d / %d" % [int(player.get("hp", 0)), int(player.get("max_hp", 1))]
+	player_hp_text.text = "HP %d / %d   ·   Shards %d/%d" % [
+		int(player.get("hp", 0)),
+		int(player.get("max_hp", 1)),
+		GameState.get_bond_shards(),
+		GameState.BOND_SHARD_CAP
+	]
 	enemy_hp_text.text = "HP %d / %d" % [int(enemy.get("hp", 0)), int(enemy.get("max_hp", 1))]
 	_tint_hp_bar(player_hp, float(player.get("hp", 0)) / maxf(float(player.get("max_hp", 1)), 1.0))
 	_tint_hp_bar(enemy_hp, float(enemy.get("hp", 0)) / maxf(float(enemy.get("max_hp", 1)), 1.0))
+	heal_btn.text = "SHARD\n%d/%d" % [GameState.get_bond_shards(), GameState.BOND_SHARD_CAP]
 	player_view.queue_redraw()
 	enemy_view.queue_redraw()
 	GameState.set_companion(player)
@@ -305,6 +366,9 @@ func _set_actions_enabled(on: bool) -> void:
 			c.disabled = not on
 	if on:
 		$Safe/VBox/Actions/FleeBtn.disabled = not can_flee
+		var can_shard := GameState.can_use_bond_shard() and int(player.get("hp", 0)) < int(player.get("max_hp", 1))
+		heal_btn.disabled = not can_shard
+		heal_btn.text = "SHARD\n%d/%d" % [GameState.get_bond_shards(), GameState.BOND_SHARD_CAP]
 
 func _show_abilities() -> void:
 	if busy:
@@ -429,6 +493,10 @@ func _victory() -> void:
 	if is_boss:
 		GameState.mark_boss_defeated(str(enemy.get("template_id", enemy.get("id"))))
 	GameState.end_battle_victory(enemy)
+	var drop: Dictionary = GameState.try_grant_bond_shard_drop(enemy, is_boss)
+	if bool(drop.get("granted", false)):
+		_append(str(drop.get("log", "Found a Bond Shard!")))
+		await get_tree().create_timer(0.55).timeout
 	var region := GameState.current_region()
 	if str(region.get("id")) == "meteor_hive" and is_boss:
 		GameState.last_run_report = GameState.end_run(true)

@@ -161,8 +161,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.55, 1, 0.7, 1)
 theme_override_font_sizes/font_size = 20
-text = "HEAL
-(Test)"
+text = "SHARD"
 
 [node name="AbilityList" type="VBoxContainer" parent="Safe/VBox"]
 visible = false

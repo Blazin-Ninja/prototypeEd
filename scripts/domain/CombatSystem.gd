@@ -143,6 +143,60 @@ static func attempt_flee(player: Dictionary, enemy: Dictionary) -> bool:
 	var chance := clampf(50.0 + float(ps - es) * 3.0, 15.0, 90.0)
 	return randi() % 100 < int(chance)
 
+static func bond_shard_heal_range(companion: Dictionary) -> Vector2:
+	## Base 35–55%. Healing mutations (e.g. vital_bond) raise to 50–75%.
+	if _has_shard_healing_bonus(companion):
+		return Vector2(0.50, 0.75)
+	return Vector2(0.35, 0.55)
+
+static func _has_shard_healing_bonus(companion: Dictionary) -> bool:
+	for mid in companion.get("mutations", []):
+		var id := str(mid)
+		if id == "vital_bond" or id == "shard_affinity":
+			return true
+		var m: Dictionary = DataRegistry.get_mutation(id)
+		if str(m.get("passive", "")) in ["vital_bond", "shard_affinity", "increased_healing"]:
+			return true
+	for p in companion.get("passives", []):
+		if str(p) in ["vital_bond", "shard_affinity", "increased_healing"]:
+			return true
+	return false
+
+static func use_bond_shard(companion: Dictionary) -> Dictionary:
+	## Heal 35–55% (or boosted band) and cleanse the most dangerous status.
+	var max_hp := int(companion.get("max_hp", companion.get("stats", {}).get("hp", 1)))
+	var hp := int(companion.get("hp", 0))
+	if hp >= max_hp:
+		return {"ok": false, "healed": 0, "cleansed": null, "log": "Already at full health."}
+	var band := bond_shard_heal_range(companion)
+	var ratio := randf_range(band.x, band.y)
+	var heal := maxi(1, int(round(float(max_hp) * ratio)))
+	var new_hp := mini(max_hp, hp + heal)
+	var actual := new_hp - hp
+	companion["hp"] = new_hp
+	var cleansed = _cleanse_priority_status(companion)
+	var log := "Used a Bond Shard! Restored %d HP." % actual
+	if cleansed != null:
+		log += " Purged %s." % cleansed
+	return {"ok": true, "healed": actual, "cleansed": cleansed, "log": log}
+
+static func _cleanse_priority_status(creature: Dictionary) -> Variant:
+	## Prefer stun > poison > burn > first remaining.
+	var statuses: Array = creature.get("statuses", [])
+	if statuses.is_empty():
+		return null
+	var priority := [STATUS_STUN, STATUS_POISON, STATUS_BURN]
+	for want in priority:
+		for i in range(statuses.size()):
+			if str(statuses[i].get("id", "")) == want:
+				statuses.remove_at(i)
+				creature["statuses"] = statuses
+				return want
+	var first := str(statuses[0].get("id", "status"))
+	statuses.remove_at(0)
+	creature["statuses"] = statuses
+	return first
+
 static func _apply_status(target: Dictionary, status_id: String) -> void:
 	for s in target.get("statuses", []):
 		if str(s.get("id", "")) == status_id:

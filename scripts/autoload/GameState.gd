@@ -3,6 +3,7 @@ extends Node
 
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
+const BOND_SHARD_CAP := 5
 
 var account: Dictionary = {}
 var run: Dictionary = {}
@@ -27,7 +28,15 @@ func continue_run() -> bool:
 	if not SaveService.has_run():
 		return false
 	run = SaveService.load_run()
-	return not run.is_empty()
+	if run.is_empty():
+		return false
+	# Migrate pre–Bond Shard saves.
+	if not run.has("bond_shards"):
+		run["bond_shards"] = 1
+		autosave()
+	else:
+		run["bond_shards"] = clampi(int(run.get("bond_shards", 1)), 0, BOND_SHARD_CAP)
+	return true
 
 func start_new_run(starter_id: String) -> void:
 	var companion := CreatureFactory.create_from_template(starter_id, {"is_player": true})
@@ -52,7 +61,8 @@ func start_new_run(starter_id: String) -> void:
 		"alive": true,
 		"steps": 0,
 		"cleared_obelisks": [],
-		"wild_rosters": {}
+		"wild_rosters": {},
+		"bond_shards": 1
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
 	SaveService.save_account(account)
@@ -216,6 +226,45 @@ func mark_wild_defeated(region_id: String, instance_id: String) -> void:
 			break
 	if changed:
 		set_wild_roster(region_id, roster)
+
+func get_bond_shards() -> int:
+	if run.is_empty():
+		return 0
+	return clampi(int(run.get("bond_shards", 1)), 0, BOND_SHARD_CAP)
+
+func set_bond_shards(amount: int) -> void:
+	if run.is_empty():
+		return
+	run["bond_shards"] = clampi(amount, 0, BOND_SHARD_CAP)
+	autosave()
+
+func can_use_bond_shard() -> bool:
+	return get_bond_shards() > 0
+
+func consume_bond_shard() -> bool:
+	if get_bond_shards() <= 0:
+		return false
+	set_bond_shards(get_bond_shards() - 1)
+	return true
+
+func try_grant_bond_shard_drop(enemy: Dictionary, is_boss_fight: bool) -> Dictionary:
+	## Returns {granted: bool, shards: int, log: String}
+	var current := get_bond_shards()
+	if current >= BOND_SHARD_CAP:
+		return {"granted": false, "shards": current, "log": ""}
+	var chance := 0.12
+	if is_boss_fight:
+		chance = 0.30
+	elif bool(enemy.get("is_obelisk_guardian", false)):
+		chance = 0.20
+	if randf() >= chance:
+		return {"granted": false, "shards": current, "log": ""}
+	set_bond_shards(current + 1)
+	return {
+		"granted": true,
+		"shards": get_bond_shards(),
+		"log": "Found a Bond Shard! (%d/%d)" % [get_bond_shards(), BOND_SHARD_CAP]
+	}
 
 func buy_unlock(unlock_id: String) -> Dictionary:
 	return ProgressionSystem.purchase(account, unlock_id)

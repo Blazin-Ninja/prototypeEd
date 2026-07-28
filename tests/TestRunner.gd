@@ -13,6 +13,7 @@ func _ready() -> void:
 	failed += _test_flee_and_initiative()
 	failed += _test_map_walkable()
 	failed += _test_obelisks()
+	failed += _test_bond_shards()
 	failed += _test_progression_starters()
 	if failed == 0:
 		print("ALL TESTS PASSED")
@@ -117,6 +118,68 @@ func _test_obelisks() -> int:
 	GameState.mark_wild_defeated("forest", "w1")
 	var roster := GameState.get_wild_roster("forest")
 	f += _ok("wild marked defeated", roster.size() == 1 and not bool(roster[0].get("alive", true)))
+	return f
+
+func _test_bond_shards() -> int:
+	var f := 0
+	GameState.start_new_run("ember_pup")
+	f += _ok("new run starts with 1 shard", GameState.get_bond_shards() == 1)
+	f += _ok("can use starting shard", GameState.can_use_bond_shard())
+
+	var pup := CreatureFactory.create_from_template("ember_pup", {"is_player": true})
+	var max_hp := int(pup.get("max_hp", 1))
+	pup["hp"] = maxi(1, max_hp / 4)
+	pup["statuses"] = [
+		{"id": "burn", "turns": 2},
+		{"id": "stun", "turns": 1},
+		{"id": "poison", "turns": 2}
+	]
+	var before := int(pup.get("hp", 0))
+	var res := CombatSystem.use_bond_shard(pup)
+	f += _ok("shard heal ok", bool(res.get("ok", false)))
+	f += _ok("shard healed some hp", int(res.get("healed", 0)) > 0 and int(pup.get("hp", 0)) > before)
+	var band := CombatSystem.bond_shard_heal_range(pup)
+	var min_heal := maxi(1, int(round(float(max_hp) * band.x)))
+	var max_heal := maxi(1, int(round(float(max_hp) * band.y)))
+	var healed := int(res.get("healed", 0))
+	f += _ok("heal in 35-55% band", healed >= min_heal - 1 and healed <= max_heal)
+	f += _ok("cleanses stun first", str(res.get("cleansed", "")) == "stun")
+	var left: Array = pup.get("statuses", [])
+	var has_stun := false
+	for s in left:
+		if str(s.get("id", "")) == "stun":
+			has_stun = true
+	f += _ok("stun removed from statuses", not has_stun)
+
+	# Priority: poison over burn when stun gone
+	pup["statuses"] = [{"id": "burn", "turns": 2}, {"id": "poison", "turns": 2}]
+	pup["hp"] = maxi(1, max_hp / 4)
+	res = CombatSystem.use_bond_shard(pup)
+	f += _ok("cleanses poison before burn", str(res.get("cleansed", "")) == "poison")
+
+	# Cap
+	GameState.set_bond_shards(GameState.BOND_SHARD_CAP)
+	f += _ok("cap is 5", GameState.get_bond_shards() == 5)
+	GameState.set_bond_shards(99)
+	f += _ok("set clamps to cap", GameState.get_bond_shards() == GameState.BOND_SHARD_CAP)
+	var drop := GameState.try_grant_bond_shard_drop({"is_obelisk_guardian": true}, false)
+	f += _ok("no drop at cap", not bool(drop.get("granted", true)))
+
+	GameState.set_bond_shards(1)
+	f += _ok("consume works", GameState.consume_bond_shard() and GameState.get_bond_shards() == 0)
+	f += _ok("cannot consume at zero", not GameState.consume_bond_shard())
+
+	# Full HP rejects
+	pup["hp"] = max_hp
+	pup["statuses"] = []
+	res = CombatSystem.use_bond_shard(pup)
+	f += _ok("rejects full hp", not bool(res.get("ok", true)))
+
+	# Mutation boost hook
+	var boosted := CreatureFactory.create_from_template("ember_pup", {"is_player": true})
+	boosted["passives"] = ["vital_bond"]
+	var boosted_band := CombatSystem.bond_shard_heal_range(boosted)
+	f += _ok("vital_bond raises heal band", is_equal_approx(boosted_band.x, 0.50) and is_equal_approx(boosted_band.y, 0.75))
 	return f
 
 func _test_progression_starters() -> int:
