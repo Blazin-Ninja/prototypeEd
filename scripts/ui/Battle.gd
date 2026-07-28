@@ -17,6 +17,9 @@ extends Control
 @onready var enemy_panel: PanelContainer = $Safe/VBox/EnemyPanel
 @onready var player_panel: PanelContainer = $Safe/VBox/PlayerPanel
 @onready var fx_layer: Control = $FXLayer
+@onready var heal_btn: Button = $Safe/VBox/Actions/HealBtn
+
+const TEST_MODE := true ## Infinite battle heal for playtesting.
 
 var player: Dictionary = {}
 var enemy: Dictionary = {}
@@ -60,11 +63,22 @@ func _ready() -> void:
 	$Safe/VBox/Actions/FightBtn.pressed.connect(_show_abilities)
 	$Safe/VBox/Actions/FleeBtn.pressed.connect(_flee)
 	$Safe/VBox/Actions/FleeBtn.disabled = not can_flee
+	heal_btn.visible = TEST_MODE
+	heal_btn.pressed.connect(_test_heal)
 	_refresh()
 	var intro := "%s wants to battle!" % enemy.get("name", "Enemy")
 	if is_boss:
 		intro = "[b]BOSS[/b] — %s blocks the path!" % enemy.get("name", "Enemy")
 	_append(intro)
+
+func _test_heal() -> void:
+	if not TEST_MODE or busy:
+		return
+	player["hp"] = int(player.get("max_hp", player.get("hp", 1)))
+	player["statuses"] = []
+	GameState.set_companion(player)
+	_refresh()
+	_append("[Test] Companion fully healed.")
 
 func _process(delta: float) -> void:
 	_anim_t += delta
