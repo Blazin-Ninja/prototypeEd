@@ -7,13 +7,20 @@ extends Control
 
 var _selected: String = ""
 var _preview_creature: Dictionary = {}
+var _preview_t := 0.0
 
 func _ready() -> void:
+	PlayerAvatar.ensure_loaded()
 	confirm_btn.disabled = true
 	confirm_btn.pressed.connect(_confirm)
 	$Safe/VBox/BackBtn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn"))
 	_build_list()
 	preview.draw.connect(_on_preview_draw)
+
+func _process(delta: float) -> void:
+	_preview_t += delta * 6.0
+	if not _preview_creature.is_empty():
+		preview.queue_redraw()
 
 func _build_list() -> void:
 	for c in list.get_children():
@@ -50,8 +57,13 @@ func _select(starter_id: String) -> void:
 		", ".join(PackedStringArray(t.get("abilities", [])))
 	]
 	_preview_creature = {
+		"id": starter_id,
+		"template_id": starter_id,
+		"name": t.get("name"),
 		"color": t.get("color"),
 		"shape": t.get("shape"),
+		"elements": t.get("elements", []),
+		"abilities": t.get("abilities", []),
 		"mutations": [],
 		"is_alpha": false,
 		"is_boss": false
@@ -61,7 +73,8 @@ func _select(starter_id: String) -> void:
 func _on_preview_draw() -> void:
 	if _preview_creature.is_empty():
 		return
-	PlaceholderArt.draw_creature(preview, _preview_creature, preview.size * 0.5, minf(preview.size.x, preview.size.y) * 0.35)
+	var s := minf(preview.size.x, preview.size.y) / 48.0 * 0.95
+	PlayerAvatar.draw(preview, preview.size * 0.5, s, _preview_creature, "down", _preview_t, true)
 
 func _confirm() -> void:
 	if _selected == "":

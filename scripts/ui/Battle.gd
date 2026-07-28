@@ -26,13 +26,20 @@ func _ready() -> void:
 	enemy = pending.get("enemy", {}).duplicate(true)
 	can_flee = bool(pending.get("can_flee", true))
 	is_boss = bool(pending.get("is_boss", false))
-	player_view.draw.connect(func(): PlaceholderArt.draw_creature(player_view, player, player_view.size * 0.5, minf(player_view.size.x, player_view.size.y) * 0.4))
+	player_view.draw.connect(_draw_player_battle)
 	enemy_view.draw.connect(func(): PlaceholderArt.draw_creature(enemy_view, enemy, enemy_view.size * 0.5, minf(enemy_view.size.x, enemy_view.size.y) * 0.4))
 	$Safe/VBox/Actions/FightBtn.pressed.connect(_show_abilities)
 	$Safe/VBox/Actions/FleeBtn.pressed.connect(_flee)
 	$Safe/VBox/Actions/FleeBtn.disabled = not can_flee
 	_refresh()
 	_append("%s wants to battle!" % enemy.get("name", "Enemy"))
+
+func _draw_player_battle() -> void:
+	# Trainer on the left/back, companion forward as the battler.
+	var mid := player_view.size * 0.5
+	var scale := minf(player_view.size.x, player_view.size.y) / 48.0 * 0.7
+	PlayerAvatar.draw(player_view, mid + Vector2(-player_view.size.x * 0.18, player_view.size.y * 0.08), scale * 0.85, player, "right", 0.0, false)
+	PlaceholderArt.draw_creature(player_view, player, mid + Vector2(player_view.size.x * 0.16, 0), minf(player_view.size.x, player_view.size.y) * 0.32)
 
 func _refresh() -> void:
 	player_name.text = str(player.get("name", "You"))

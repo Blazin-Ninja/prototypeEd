@@ -31,11 +31,15 @@ var _save_cooldown := 0.0
 var _bob_t := 0.0
 var _wilds: Array = [] ## {creature, pos, vel, bob}
 var _boss_marker: Dictionary = {} ## visible boss on map if undefeated
+var _facing: String = "down"
+var _walk_phase: float = 0.0
+var _moving := false
 
 func _ready() -> void:
 	if GameState.run.is_empty():
 		get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn")
 		return
+	PlayerAvatar.ensure_loaded()
 	region_panel.visible = false
 	heal_btn.visible = TEST_MODE
 	heal_btn.pressed.connect(_test_heal)
@@ -157,6 +161,7 @@ func _refresh_hud() -> void:
 
 func _process(delta: float) -> void:
 	if _map.is_empty() or _busy or region_panel.visible:
+		_moving = false
 		return
 	_update_keyboard()
 	_update_wilds(delta)
@@ -164,11 +169,14 @@ func _process(delta: float) -> void:
 	if input_vec.length() < 0.01:
 		input_vec = _keyboard
 	if input_vec.length() > 0.01:
+		_facing = PlayerAvatar.facing_from_vector(input_vec)
 		var before := _pos
 		_move_with_collision(input_vec.normalized() * MOVE_SPEED * input_vec.length() * delta)
 		var dist := before.distance_to(_pos)
-		if dist > 0.0001:
-			_bob_t += delta * (6.0 + input_vec.length() * 8.0)
+		_moving = dist > 0.0001
+		if _moving:
+			_walk_phase += delta * (8.0 + input_vec.length() * 6.0)
+			_bob_t = _walk_phase
 			_persist_pos(true)
 			_save_cooldown -= delta
 			if _save_cooldown <= 0.0:
@@ -180,7 +188,8 @@ func _process(delta: float) -> void:
 				_on_enter_tile(_tile_type(tile))
 			_check_contacts()
 	else:
-		_bob_t = move_toward(_bob_t, roundf(_bob_t / TAU) * TAU, delta * 8.0)
+		_moving = false
+		_walk_phase = move_toward(_walk_phase, floorf(_walk_phase / 4.0) * 4.0, delta * 10.0)
 		_check_contacts()
 	map_draw.queue_redraw()
 
@@ -324,12 +333,17 @@ func _draw_map() -> void:
 		PlaceholderArt.draw_creature(map_draw, _boss_marker["creature"], bpos, 16.0)
 		map_draw.draw_string(ThemeDB.fallback_font, bpos + Vector2(-40, -26), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 80, 12, Color(1, 0.75, 0.75, 0.95))
 
-	# Player
-	var bob_p := sin(_bob_t) * 2.5
-	var center := origin + _pos * TILE + Vector2(0.0, bob_p)
-	map_draw.draw_circle(center + Vector2(0, 10), 9.0, Color(0, 0, 0, 0.25))
-	map_draw.draw_circle(center, 12.0, Color(0.95, 0.95, 0.9))
-	PlaceholderArt.draw_creature(map_draw, GameState.get_companion(), center, 11.0)
+	# Player: human trainer with companion on shoulder
+	var center := origin + _pos * TILE
+	PlayerAvatar.draw(
+		map_draw,
+		center,
+		1.15,
+		GameState.get_companion(),
+		_facing,
+		_walk_phase,
+		_moving
+	)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("confirm"):

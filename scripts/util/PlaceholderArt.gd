@@ -87,3 +87,61 @@ static func draw_creature(canvas: CanvasItem, creature: Dictionary, center: Vect
 		canvas.draw_arc(center, radius * 1.15, 0, TAU, 32, Color(1, 0.84, 0, 0.9), 3.0)
 	if creature.get("is_boss", false):
 		canvas.draw_arc(center, radius * 1.25, 0, TAU, 32, Color(0.7, 0.1, 0.2, 0.9), 4.0)
+
+	# Ability / element flourishes so companions read like their powers.
+	_draw_power_flourishes(canvas, creature, center, radius)
+
+static func _draw_power_flourishes(canvas: CanvasItem, creature: Dictionary, center: Vector2, radius: float) -> void:
+	var els: Array = creature.get("elements", [])
+	var tid := str(creature.get("template_id", creature.get("id", "")))
+	var primary := str(els[0]) if not els.is_empty() else ""
+	match primary:
+		"fire":
+			for i in 3:
+				var o := Vector2((-0.35 + i * 0.35) * radius, -radius * (0.75 + 0.1 * (i % 2)))
+				canvas.draw_colored_polygon(PackedVector2Array([
+					center + o,
+					center + o + Vector2(radius * 0.08, radius * 0.18),
+					center + o + Vector2(-radius * 0.08, radius * 0.18)
+				]), Color(1.0, 0.55, 0.1, 0.85))
+		"water":
+			for i in 3:
+				var p := center + Vector2((-0.4 + i * 0.4) * radius, radius * 0.7)
+				canvas.draw_circle(p, radius * 0.07, Color(0.4, 0.75, 1.0, 0.7))
+		"nature":
+			for i in 2:
+				var side := -1.0 if i == 0 else 1.0
+				canvas.draw_colored_polygon(PackedVector2Array([
+					center + Vector2(side * radius * 0.15, -radius * 0.1),
+					center + Vector2(side * radius * 0.75, -radius * 0.45),
+					center + Vector2(side * radius * 0.35, radius * 0.05)
+				]), Color(0.35, 0.75, 0.4, 0.75))
+		"wind":
+			for i in 2:
+				var y := -0.1 + i * 0.25
+				canvas.draw_line(center + Vector2(-radius * 0.7, y * radius), center + Vector2(radius * 0.7, (y - 0.1) * radius), Color(0.75, 0.95, 1.0, 0.55), 2.0)
+		"electric":
+			canvas.draw_colored_polygon(PackedVector2Array([
+				center + Vector2(0, -radius * 1.05),
+				center + Vector2(radius * 0.12, -radius * 0.55),
+				center + Vector2(-radius * 0.05, -radius * 0.55),
+				center + Vector2(0, -radius * 0.2),
+				center + Vector2(-radius * 0.12, -radius * 0.7),
+				center + Vector2(radius * 0.05, -radius * 0.7)
+			]), Color(1.0, 0.9, 0.2, 0.85))
+		"shadow":
+			canvas.draw_circle(center + Vector2(0, radius * 0.1), radius * 0.95, Color(0.25, 0.05, 0.35, 0.18))
+		_:
+			pass
+	# Bite / claw starters get fang or claw marks via ability names.
+	for aid in creature.get("abilities", []):
+		var name := str(DataRegistry.get_ability(str(aid)).get("name", "")).to_lower()
+		if "bite" in name or "fang" in name:
+			canvas.draw_colored_polygon(PackedVector2Array([
+				center + Vector2(-radius * 0.12, radius * 0.05),
+				center + Vector2(-radius * 0.05, radius * 0.35),
+				center + Vector2(0, radius * 0.05)
+			]), Color(1, 1, 1, 0.9))
+		if "scratch" in name or "slash" in name or "claw" in name:
+			canvas.draw_line(center + Vector2(radius * 0.35, -radius * 0.1), center + Vector2(radius * 0.7, radius * 0.25), Color(0.9, 0.9, 0.95, 0.7), 2.0)
+			canvas.draw_line(center + Vector2(radius * 0.25, 0), center + Vector2(radius * 0.65, radius * 0.35), Color(0.9, 0.9, 0.95, 0.55), 2.0)
