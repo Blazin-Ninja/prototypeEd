@@ -23,13 +23,6 @@ anchor_right = 1.0
 offset_bottom = 420.0
 color = Color(0.12, 0.08, 0.16, 0.55)
 
-[node name="FXLayer" type="Control" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-mouse_filter = 2
-
 [node name="Safe" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
@@ -166,3 +159,11 @@ text = "FLEE"
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
+
+[node name="FXLayer" type="Control" parent="."]
+z_index = 20
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2

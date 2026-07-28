@@ -105,10 +105,10 @@ func _creature_offset(is_player_side: bool) -> Vector2:
 	var dir := Vector2(0, -1) if is_player_side else Vector2(0, 1)
 	var shake := Vector2.ZERO
 	if hit > 0.0:
-		shake = Vector2(sin(_anim_t * 55.0) * 7.0 * hit, cos(_anim_t * 40.0) * 3.0 * hit)
+		shake = Vector2(sin(_anim_t * 55.0) * 12.0 * hit, cos(_anim_t * 40.0) * 5.0 * hit)
 	if miss > 0.0:
-		shake += Vector2(sin(_anim_t * 30.0) * 10.0 * miss, 0)
-	return dir * (28.0 * lunge) + shake
+		shake += Vector2(sin(_anim_t * 30.0) * 16.0 * miss, 0)
+	return dir * (56.0 * lunge) + shake
 
 func _draw_player_battle() -> void:
 	var mid := player_view.size * 0.5 + _creature_offset(true)
@@ -157,20 +157,22 @@ func _draw_fx() -> void:
 				var tarc: float = sin(tp * PI) * 48.0
 				tpos += Vector2(tarc * (1.0 if _fx_from_player else -1.0), -tarc * 0.6)
 				var trail_a: float = 0.55 - float(i) * 0.12
-				fx_layer.draw_circle(tpos, 10.0 - float(i) * 1.8, Color(col.r, col.g, col.b, trail_a))
-			fx_layer.draw_circle(pos, 14.0 if not _fx_critical else 18.0, col)
-			fx_layer.draw_circle(pos, 6.0, Color(1, 1, 1, 0.9))
+				fx_layer.draw_circle(tpos, 14.0 - float(i) * 2.0, Color(col.r, col.g, col.b, trail_a))
+			fx_layer.draw_circle(pos, 20.0 if not _fx_critical else 26.0, col)
+			fx_layer.draw_circle(pos, 8.0, Color(1, 1, 1, 0.95))
 		elif _fx_kind == "physical":
 			# Slash streaks near impact window
-			if p > 0.35 and p < 0.85:
-				var slash_p: float = (p - 0.35) / 0.5
-				var mid: Vector2 = from_pt.lerp(to_pt, 0.72)
-				var ang: float = (-0.7 if _fx_from_player else 0.7) + slash_p * 0.4
-				var slash_len: float = 54.0 + (12.0 if _fx_critical else 0.0)
+			if p > 0.25 and p < 0.9:
+				var slash_p: float = (p - 0.25) / 0.65
+				var mid: Vector2 = from_pt.lerp(to_pt, 0.68)
+				var ang: float = (-0.7 if _fx_from_player else 0.7) + slash_p * 0.5
+				var slash_len: float = 72.0 + (18.0 if _fx_critical else 0.0)
 				var axis: Vector2 = Vector2(cos(ang), sin(ang)) * slash_len
-				var width_col := Color(col.r, col.g, col.b, 0.85 - slash_p * 0.5)
-				fx_layer.draw_line(mid - axis, mid + axis, width_col, 6.0 if _fx_critical else 4.0)
-				fx_layer.draw_line(mid - axis * 0.7 + Vector2(0, 8), mid + axis * 0.7 + Vector2(0, 8), Color(1, 1, 1, 0.45), 2.0)
+				var width_col := Color(col.r, col.g, col.b, 0.95 - slash_p * 0.4)
+				fx_layer.draw_line(mid - axis, mid + axis, width_col, 10.0 if _fx_critical else 7.0)
+				fx_layer.draw_line(mid - axis * 0.7 + Vector2(0, 10), mid + axis * 0.7 + Vector2(0, 10), Color(1, 1, 1, 0.55), 3.0)
+				# Extra claw marks
+				fx_layer.draw_line(mid - axis * 0.55 + Vector2(0, -10), mid + axis * 0.55 + Vector2(0, -10), Color(col.r, col.g, col.b, 0.7), 4.0)
 		elif _fx_kind == "miss":
 			# Soft puff that fades near the target
 			var miss_pos: Vector2 = from_pt.lerp(to_pt, minf(p * 1.2, 0.85))
@@ -180,9 +182,9 @@ func _draw_fx() -> void:
 	if _fx_impact > 0.0:
 		var burst: Vector2 = to_pt
 		var impact_a: float = _fx_impact
-		var r: float = 18.0 + (1.0 - impact_a) * 36.0
-		fx_layer.draw_circle(burst, r, Color(col.r, col.g, col.b, 0.35 * impact_a))
-		fx_layer.draw_circle(burst, r * 0.45, Color(1, 1, 1, 0.55 * impact_a))
+		var r: float = 28.0 + (1.0 - impact_a) * 52.0
+		fx_layer.draw_circle(burst, r, Color(col.r, col.g, col.b, 0.45 * impact_a))
+		fx_layer.draw_circle(burst, r * 0.45, Color(1, 1, 1, 0.7 * impact_a))
 		# Short radial ticks
 		for i in range(6):
 			var bang: float = float(i) * TAU / 6.0 + _anim_t * 2.0
