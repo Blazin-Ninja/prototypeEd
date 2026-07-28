@@ -2,6 +2,7 @@ extends Control
 
 @onready var title: Label = $Safe/VBox/Title
 @onready var body: Label = $Safe/VBox/Body
+@onready var eddie: Label = $Safe/VBox/EddieLine
 
 func _ready() -> void:
 	var report: Dictionary = GameState.last_run_report
@@ -10,6 +11,8 @@ func _ready() -> void:
 	var won := bool(report.get("won", false))
 	title.text = "VICTORY" if won else "GAME OVER"
 	title.modulate = Color(0.7, 0.95, 0.75) if won else Color(0.95, 0.55, 0.55)
+	eddie.visible = not won
+	eddie.text = "Do better than Eddie did."
 	body.text = "%s\n\nCompanion: %s\nBattles won: %d\nAbsorptions: %d\nRegions cleared: %s\n\nEvolution Tokens earned: +%d\nTotal tokens: %d" % [
 		"The hive falls. Humanity endures — for now." if won else "Your companion reached zero HP.\nThe run ends. No reloads.",
 		report.get("companion_name", "?"),

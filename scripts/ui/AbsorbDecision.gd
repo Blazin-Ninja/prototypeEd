@@ -82,20 +82,52 @@ func _ask_choice(result: Dictionary) -> Dictionary:
 		c.queue_free()
 	var typed := str(result.get("type"))
 	if typed == "ability":
-		choice_title.text = "Ability slots full. Replace one or skip."
+		var new_id := str(result.get("ability_id", ""))
+		var new_ab: Dictionary = DataRegistry.get_ability(new_id)
+		var new_el = new_ab.get("element", null)
+		var new_el_txt := str(new_el).capitalize() if new_el != null else "Neutral"
+		choice_title.text = "NEW ATTACK\n%s\nPower %d · %s · %s\nAccuracy %d%%\n\nSlots full — choose an attack to replace, or skip." % [
+			new_ab.get("name", new_id),
+			int(new_ab.get("power", 0)),
+			str(new_ab.get("category", "physical")).capitalize(),
+			new_el_txt,
+			int(new_ab.get("accuracy", 100))
+		]
+		# Header comparing current moves
+		var header := Label.new()
+		header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		header.text = "Your current attacks:"
+		choice_list.add_child(header)
 		for aid in companion.get("abilities", []):
+			var old_ab: Dictionary = DataRegistry.get_ability(str(aid))
+			var old_el = old_ab.get("element", null)
+			var old_el_txt := str(old_el).capitalize() if old_el != null else "Neutral"
 			var btn := Button.new()
-			btn.text = "Replace %s" % DataRegistry.get_ability(str(aid)).get("name", aid)
+			btn.custom_minimum_size = Vector2(0, 56)
+			btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var power_delta := int(new_ab.get("power", 0)) - int(old_ab.get("power", 0))
+			var delta_txt := "+%d pwr" % power_delta if power_delta >= 0 else "%d pwr" % power_delta
+			btn.text = "Replace %s  (Pwr %d · %s)\n→ with %s  (Pwr %d · %s)  [%s]" % [
+				old_ab.get("name", aid),
+				int(old_ab.get("power", 0)),
+				old_el_txt,
+				new_ab.get("name", new_id),
+				int(new_ab.get("power", 0)),
+				new_el_txt,
+				delta_txt
+			]
 			btn.pressed.connect(_resolve_choice.bind({"replace_ability": str(aid)}))
 			choice_list.add_child(btn)
 	elif typed == "element":
-		choice_title.text = "Element slots full (max 3). Replace one or skip."
+		choice_title.text = "Element slots full (max 3). Replace one or skip.\nNew element: %s" % str(result.get("element", "?")).capitalize()
 		for el in companion.get("elements", []):
 			var btn2 := Button.new()
+			btn2.custom_minimum_size = Vector2(0, 48)
 			btn2.text = "Replace %s" % str(el).capitalize()
 			btn2.pressed.connect(_resolve_choice.bind({"replace_element": str(el)}))
 			choice_list.add_child(btn2)
 	var skip := Button.new()
+	skip.custom_minimum_size = Vector2(0, 48)
 	skip.text = "Skip this reward"
 	skip.pressed.connect(_resolve_choice.bind({}))
 	choice_list.add_child(skip)

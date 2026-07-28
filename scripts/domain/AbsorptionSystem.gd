@@ -59,10 +59,17 @@ static func roll_all(companion: Dictionary, enemy: Dictionary, account: Dictiona
 					"needs_choice": false
 				})
 			else:
+				var abdef: Dictionary = DataRegistry.get_ability(pick)
+				var el = abdef.get("element", null)
+				var el_txt := str(el).capitalize() if el != null else "Neutral"
 				results.append({
 					"type": "ability",
 					"ability_id": pick,
-					"label": "New ability: %s" % DataRegistry.get_ability(pick).get("name", pick),
+					"label": "New ability: %s (Pwr %d · %s)" % [
+						abdef.get("name", pick),
+						int(abdef.get("power", 0)),
+						el_txt
+					],
 					"needs_choice": companion.get("abilities", []).size() >= DataRegistry.max_abilities,
 					"full": companion.get("abilities", []).size() >= DataRegistry.max_abilities
 				})

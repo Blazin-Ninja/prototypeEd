@@ -36,6 +36,15 @@ theme_override_font_sizes/font_size = 40
 text = "GAME OVER"
 horizontal_alignment = 1
 
+[node name="EddieLine" type="Label" parent="Safe/VBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.7, 0.45, 1)
+theme_override_font_sizes/font_size = 22
+text = "Do better than Eddie did."
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="Body" type="Label" parent="Safe/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
