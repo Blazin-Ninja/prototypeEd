@@ -62,7 +62,7 @@ Adding a creature: append an entry in `data/creatures.json` with stats, families
 
 | Input | Action |
 |-------|--------|
-| D-pad / WASD / arrows | Move |
+| Virtual joystick / WASD / arrows | Smooth move |
 | A / Z / Enter | Interact |
 | B / X / Esc | Status |
 | Regions button | Travel between unlocked regions |

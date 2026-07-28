@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://overworld001"]
+[gd_scene load_steps=3 format=3 uid="uid://overworld001"]
 
 [ext_resource type="Script" path="res://scripts/ui/Overworld.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/VirtualJoystick.gd" id="2"]
 
 [node name="Overworld" type="Control"]
 layout_mode = 3
@@ -29,6 +30,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+mouse_filter = 2
 
 [node name="HUD" type="Control" parent="."]
 layout_mode = 1
@@ -45,6 +47,7 @@ offset_left = 12.0
 offset_top = 20.0
 offset_right = -12.0
 offset_bottom = 90.0
+mouse_filter = 2
 
 [node name="Info" type="Label" parent="HUD/Top"]
 layout_mode = 2
@@ -69,49 +72,22 @@ offset_left = 16.0
 offset_top = -300.0
 offset_right = -16.0
 offset_bottom = -220.0
+mouse_filter = 2
 theme_override_font_sizes/font_size = 15
 text = ""
 autowrap_mode = 3
 
-[node name="Pad" type="Control" parent="HUD"]
+[node name="Joystick" type="Control" parent="HUD"]
+custom_minimum_size = Vector2(160, 160)
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = -190.0
-offset_right = 200.0
-offset_bottom = -20.0
-
-[node name="Up" type="Button" parent="HUD/Pad"]
-layout_mode = 0
-offset_left = 55.0
-offset_right = 115.0
-offset_bottom = 50.0
-text = "▲"
-
-[node name="Down" type="Button" parent="HUD/Pad"]
-layout_mode = 0
-offset_left = 55.0
-offset_top = 110.0
-offset_right = 115.0
-offset_bottom = 160.0
-text = "▼"
-
-[node name="Left" type="Button" parent="HUD/Pad"]
-layout_mode = 0
-offset_top = 55.0
-offset_right = 50.0
-offset_bottom = 105.0
-text = "◀"
-
-[node name="Right" type="Button" parent="HUD/Pad"]
-layout_mode = 0
-offset_left = 120.0
-offset_top = 55.0
-offset_right = 170.0
-offset_bottom = 105.0
-text = "▶"
+offset_left = 24.0
+offset_top = -200.0
+offset_right = 184.0
+offset_bottom = -40.0
+script = ExtResource("2")
 
 [node name="Buttons" type="VBoxContainer" parent="HUD"]
 layout_mode = 1

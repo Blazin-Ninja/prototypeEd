@@ -38,7 +38,7 @@ func start_new_run(starter_id: String) -> void:
 		"companion": companion,
 		"region_id": "forest",
 		"unlocked_regions": ["forest"],
-		"player_pos": {"x": 1, "y": 14},
+		"player_pos": {"x": 1.5, "y": 14.5},
 		"regions_cleared": [],
 		"battles_won": 0,
 		"absorptions": 0,
@@ -72,7 +72,7 @@ func heal_companion_full() -> void:
 	set_companion(c)
 	autosave()
 
-func move_player(to: Vector2i) -> void:
+func move_player(to: Vector2) -> void:
 	run["player_pos"] = {"x": to.x, "y": to.y}
 	run["steps"] = int(run.get("steps", 0)) + 1
 	autosave()
@@ -83,7 +83,10 @@ func change_region(region_id: String) -> void:
 	run["region_id"] = region_id
 	var region := DataRegistry.get_region(region_id)
 	var start: Dictionary = region.get("start_cell", {"x": 1, "y": 14})
-	run["player_pos"] = start.duplicate()
+	run["player_pos"] = {
+		"x": float(start.get("x", 1)) + 0.5,
+		"y": float(start.get("y", 14)) + 0.5
+	}
 	EventBus.region_changed.emit(region_id)
 	autosave()
 
