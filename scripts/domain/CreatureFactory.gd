@@ -32,6 +32,12 @@ static func create_from_template(template_id: String, opts: Dictionary = {}) -> 
 		color = _shift_color(color)
 
 	var max_hp := int(stats.get("hp", 1))
+	var visual_loadout: Dictionary = {}
+	for mid in mutations:
+		var m: Dictionary = DataRegistry.get_mutation(str(mid))
+		var slot := str(m.get("slot", ""))
+		if slot != "":
+			visual_loadout[slot] = str(mid)
 	return {
 		"id": template_id,
 		"instance_id": _make_id(),
@@ -44,6 +50,7 @@ static func create_from_template(template_id: String, opts: Dictionary = {}) -> 
 		"families": (template.get("families", []) as Array).duplicate(),
 		"abilities": abilities,
 		"mutations": mutations,
+		"visual_loadout": visual_loadout,
 		"passives": [],
 		"statuses": [],
 		"color": color,

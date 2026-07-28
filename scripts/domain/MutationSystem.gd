@@ -11,7 +11,13 @@ static func apply_mutation(companion: Dictionary, mutation_id: String) -> void:
 	list.append(mutation_id)
 	companion["mutations"] = list
 
-	# Discover family if mutation reveals it — families already on companion; merge enemy-linked later.
+	# Visual loadout: latest mutation wins per slot (history still stacked forever above).
+	var slot := str(m.get("slot", ""))
+	if slot != "":
+		var loadout: Dictionary = companion.get("visual_loadout", {})
+		loadout[slot] = mutation_id
+		companion["visual_loadout"] = loadout
+
 	var passive = m.get("passive", null)
 	if typeof(passive) == TYPE_DICTIONARY:
 		var stat := str(passive.get("stat", ""))

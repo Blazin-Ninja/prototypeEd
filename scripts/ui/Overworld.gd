@@ -40,6 +40,8 @@ func _ready() -> void:
 		get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn")
 		return
 	PlayerAvatar.ensure_loaded()
+	CreatureSprites.ensure_loaded()
+	BossSprites.ensure_loaded()
 	region_panel.visible = false
 	heal_btn.visible = TEST_MODE
 	heal_btn.pressed.connect(_test_heal)

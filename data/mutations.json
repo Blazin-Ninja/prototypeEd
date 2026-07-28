@@ -1,27 +1,372 @@
 {
   "mutations": [
-    {"id": "horns_small", "name": "Budding Horns", "slot": "horns", "rarity": "common", "color": "#c4a882", "families": ["beast", "dragon"], "passive": null},
-    {"id": "horns_curved", "name": "Curved Horns", "slot": "horns", "rarity": "uncommon", "color": "#8b6914", "families": ["beast", "dragon"], "passive": null},
-    {"id": "tail_stub", "name": "Stub Tail", "slot": "tail", "rarity": "common", "color": "#6b4226", "families": ["beast"], "passive": null},
-    {"id": "tail_flame", "name": "Flame Tail", "slot": "tail", "rarity": "rare", "color": "#e85d04", "families": ["beast", "dragon"], "passive": {"stat": "special_attack", "bonus": 2}},
-    {"id": "claws_sharp", "name": "Sharp Claws", "slot": "claws", "rarity": "common", "color": "#adb5bd", "families": ["beast", "bird"], "passive": {"stat": "attack", "bonus": 1}},
-    {"id": "fur_thick", "name": "Thick Fur", "slot": "fur", "rarity": "common", "color": "#d4a373", "families": ["beast"], "passive": {"stat": "defense", "bonus": 1}},
-    {"id": "scales_green", "name": "Green Scales", "slot": "scales", "rarity": "common", "color": "#2d6a4f", "families": ["dragon", "aquatic", "plant"], "passive": null},
-    {"id": "scales_ember", "name": "Ember Scales", "slot": "scales", "rarity": "rare", "color": "#dc2f02", "families": ["dragon"], "passive": {"stat": "special_defense", "bonus": 2}},
-    {"id": "feathers_soft", "name": "Soft Feathers", "slot": "feathers", "rarity": "common", "color": "#f8edeb", "families": ["bird"], "passive": {"stat": "speed", "bonus": 1}},
-    {"id": "wings_small", "name": "Budding Wings", "slot": "wings", "rarity": "uncommon", "color": "#bde0fe", "families": ["bird", "dragon", "insect"], "passive": {"stat": "speed", "bonus": 2}},
-    {"id": "armor_plates", "name": "Armor Plates", "slot": "armor", "rarity": "uncommon", "color": "#8d99ae", "families": ["construct", "insect", "dragon"], "passive": {"stat": "defense", "bonus": 3}},
-    {"id": "eyes_glow", "name": "Glowing Eyes", "slot": "eyes", "rarity": "uncommon", "color": "#fee440", "families": ["alien", "shadow", "beast"], "passive": {"stat": "accuracy", "bonus": 3}},
-    {"id": "fangs_long", "name": "Long Fangs", "slot": "fangs", "rarity": "common", "color": "#f8f9fa", "families": ["beast", "dragon", "aquatic"], "passive": {"stat": "attack", "bonus": 2}},
-    {"id": "body_bulk", "name": "Bulkier Frame", "slot": "body_size", "rarity": "common", "color": null, "families": [], "passive": {"stat": "hp", "bonus": 5}},
-    {"id": "skin_moss", "name": "Moss Skin", "slot": "skin_color", "rarity": "common", "color": "#40916c", "families": ["plant", "beast"], "passive": null},
-    {"id": "skin_ash", "name": "Ash Skin", "slot": "skin_color", "rarity": "uncommon", "color": "#6c757d", "families": ["fire", "dragon", "alien"], "passive": null},
-    {"id": "particles_embers", "name": "Ember Aura", "slot": "particles", "rarity": "rare", "color": "#e85d04", "families": ["dragon", "beast"], "passive": {"stat": "special_attack", "bonus": 3}},
-    {"id": "particles_spores", "name": "Spore Cloud", "slot": "particles", "rarity": "rare", "color": "#95d5b2", "families": ["plant", "insect"], "passive": {"stat": "special_defense", "bonus": 2}},
-    {"id": "alien_ridges", "name": "Alien Ridges", "slot": "armor", "rarity": "rare", "color": "#7b2cbf", "families": ["alien"], "passive": {"stat": "special_attack", "bonus": 3}},
-    {"id": "burning_aura", "name": "Burning Aura", "slot": "particles", "rarity": "special", "color": "#ff5400", "families": ["dragon", "beast"], "passive": {"stat": "attack", "bonus": 3}},
-    {"id": "alpha_crest", "name": "Alpha Crest", "slot": "horns", "rarity": "alpha", "color": "#ffd60a", "families": [], "passive": {"stat": "critical_chance", "bonus": 5}},
-    {"id": "boss_canopy", "name": "Canopy Mantle", "slot": "fur", "rarity": "boss", "color": "#1b4332", "families": ["plant", "beast"], "passive": {"stat": "defense", "bonus": 5}},
-    {"id": "crystal_spine", "name": "Crystal Spine", "slot": "armor", "rarity": "special", "color": "#48cae4", "families": ["construct", "alien"], "passive": {"stat": "special_defense", "bonus": 4}}
+    {
+      "id": "horns_small",
+      "name": "Budding Horns",
+      "slot": "horns",
+      "rarity": "common",
+      "color": "#c4a882",
+      "families": [
+        "beast",
+        "dragon"
+      ],
+      "passive": null,
+      "sprite_key": "horns_small",
+      "draw_layer": 60
+    },
+    {
+      "id": "horns_curved",
+      "name": "Curved Horns",
+      "slot": "horns",
+      "rarity": "uncommon",
+      "color": "#8b6914",
+      "families": [
+        "beast",
+        "dragon"
+      ],
+      "passive": null,
+      "sprite_key": "horns_curved",
+      "draw_layer": 60
+    },
+    {
+      "id": "tail_stub",
+      "name": "Stub Tail",
+      "slot": "tail",
+      "rarity": "common",
+      "color": "#6b4226",
+      "families": [
+        "beast"
+      ],
+      "passive": null,
+      "sprite_key": "tail_stub",
+      "draw_layer": 20
+    },
+    {
+      "id": "tail_flame",
+      "name": "Flame Tail",
+      "slot": "tail",
+      "rarity": "rare",
+      "color": "#e85d04",
+      "families": [
+        "beast",
+        "dragon"
+      ],
+      "passive": {
+        "stat": "special_attack",
+        "bonus": 2
+      },
+      "sprite_key": "tail_flame",
+      "draw_layer": 20
+    },
+    {
+      "id": "claws_sharp",
+      "name": "Sharp Claws",
+      "slot": "claws",
+      "rarity": "common",
+      "color": "#adb5bd",
+      "families": [
+        "beast",
+        "bird"
+      ],
+      "passive": {
+        "stat": "attack",
+        "bonus": 1
+      },
+      "sprite_key": "claws_sharp",
+      "draw_layer": 70
+    },
+    {
+      "id": "fur_thick",
+      "name": "Thick Fur",
+      "slot": "fur",
+      "rarity": "common",
+      "color": "#d4a373",
+      "families": [
+        "beast"
+      ],
+      "passive": {
+        "stat": "defense",
+        "bonus": 1
+      },
+      "sprite_key": "fur_thick",
+      "draw_layer": 30
+    },
+    {
+      "id": "scales_green",
+      "name": "Green Scales",
+      "slot": "scales",
+      "rarity": "common",
+      "color": "#2d6a4f",
+      "families": [
+        "dragon",
+        "aquatic",
+        "plant"
+      ],
+      "passive": null,
+      "sprite_key": "scales_green",
+      "draw_layer": 35
+    },
+    {
+      "id": "scales_ember",
+      "name": "Ember Scales",
+      "slot": "scales",
+      "rarity": "rare",
+      "color": "#dc2f02",
+      "families": [
+        "dragon"
+      ],
+      "passive": {
+        "stat": "special_defense",
+        "bonus": 2
+      },
+      "sprite_key": "scales_ember",
+      "draw_layer": 35
+    },
+    {
+      "id": "feathers_soft",
+      "name": "Soft Feathers",
+      "slot": "feathers",
+      "rarity": "common",
+      "color": "#f8edeb",
+      "families": [
+        "bird"
+      ],
+      "passive": {
+        "stat": "speed",
+        "bonus": 1
+      },
+      "sprite_key": "feathers_soft",
+      "draw_layer": 36
+    },
+    {
+      "id": "wings_small",
+      "name": "Budding Wings",
+      "slot": "wings",
+      "rarity": "uncommon",
+      "color": "#bde0fe",
+      "families": [
+        "bird",
+        "dragon",
+        "insect"
+      ],
+      "passive": {
+        "stat": "speed",
+        "bonus": 2
+      },
+      "sprite_key": "wings_small",
+      "draw_layer": 10
+    },
+    {
+      "id": "armor_plates",
+      "name": "Armor Plates",
+      "slot": "armor",
+      "rarity": "uncommon",
+      "color": "#8d99ae",
+      "families": [
+        "construct",
+        "insect",
+        "dragon"
+      ],
+      "passive": {
+        "stat": "defense",
+        "bonus": 3
+      },
+      "sprite_key": "armor_plates",
+      "draw_layer": 50
+    },
+    {
+      "id": "eyes_glow",
+      "name": "Glowing Eyes",
+      "slot": "eyes",
+      "rarity": "uncommon",
+      "color": "#fee440",
+      "families": [
+        "alien",
+        "shadow",
+        "beast"
+      ],
+      "passive": {
+        "stat": "accuracy",
+        "bonus": 3
+      },
+      "sprite_key": "eyes_glow",
+      "draw_layer": 80
+    },
+    {
+      "id": "fangs_long",
+      "name": "Long Fangs",
+      "slot": "fangs",
+      "rarity": "common",
+      "color": "#f8f9fa",
+      "families": [
+        "beast",
+        "dragon",
+        "aquatic"
+      ],
+      "passive": {
+        "stat": "attack",
+        "bonus": 2
+      },
+      "sprite_key": "fangs_long",
+      "draw_layer": 65
+    },
+    {
+      "id": "body_bulk",
+      "name": "Bulkier Frame",
+      "slot": "body_size",
+      "rarity": "common",
+      "color": null,
+      "families": [],
+      "passive": {
+        "stat": "hp",
+        "bonus": 5
+      },
+      "sprite_key": "body_bulk",
+      "draw_layer": 5
+    },
+    {
+      "id": "skin_moss",
+      "name": "Moss Skin",
+      "slot": "skin_color",
+      "rarity": "common",
+      "color": "#40916c",
+      "families": [
+        "plant",
+        "beast"
+      ],
+      "passive": null,
+      "sprite_key": "skin_moss",
+      "draw_layer": 37
+    },
+    {
+      "id": "skin_ash",
+      "name": "Ash Skin",
+      "slot": "skin_color",
+      "rarity": "uncommon",
+      "color": "#6c757d",
+      "families": [
+        "fire",
+        "dragon",
+        "alien"
+      ],
+      "passive": null,
+      "sprite_key": "skin_ash",
+      "draw_layer": 37
+    },
+    {
+      "id": "particles_embers",
+      "name": "Ember Aura",
+      "slot": "particles",
+      "rarity": "rare",
+      "color": "#e85d04",
+      "families": [
+        "dragon",
+        "beast"
+      ],
+      "passive": {
+        "stat": "special_attack",
+        "bonus": 3
+      },
+      "sprite_key": "particles_embers",
+      "draw_layer": 90
+    },
+    {
+      "id": "particles_spores",
+      "name": "Spore Cloud",
+      "slot": "particles",
+      "rarity": "rare",
+      "color": "#95d5b2",
+      "families": [
+        "plant",
+        "insect"
+      ],
+      "passive": {
+        "stat": "special_defense",
+        "bonus": 2
+      },
+      "sprite_key": "particles_spores",
+      "draw_layer": 90
+    },
+    {
+      "id": "alien_ridges",
+      "name": "Alien Ridges",
+      "slot": "armor",
+      "rarity": "rare",
+      "color": "#7b2cbf",
+      "families": [
+        "alien"
+      ],
+      "passive": {
+        "stat": "special_attack",
+        "bonus": 3
+      },
+      "sprite_key": "alien_ridges",
+      "draw_layer": 50
+    },
+    {
+      "id": "burning_aura",
+      "name": "Burning Aura",
+      "slot": "particles",
+      "rarity": "special",
+      "color": "#ff5400",
+      "families": [
+        "dragon",
+        "beast"
+      ],
+      "passive": {
+        "stat": "attack",
+        "bonus": 3
+      },
+      "sprite_key": "burning_aura",
+      "draw_layer": 90
+    },
+    {
+      "id": "alpha_crest",
+      "name": "Alpha Crest",
+      "slot": "horns",
+      "rarity": "alpha",
+      "color": "#ffd60a",
+      "families": [],
+      "passive": {
+        "stat": "critical_chance",
+        "bonus": 5
+      },
+      "sprite_key": "alpha_crest",
+      "draw_layer": 60
+    },
+    {
+      "id": "boss_canopy",
+      "name": "Canopy Mantle",
+      "slot": "fur",
+      "rarity": "boss",
+      "color": "#1b4332",
+      "families": [
+        "plant",
+        "beast"
+      ],
+      "passive": {
+        "stat": "defense",
+        "bonus": 5
+      },
+      "sprite_key": "boss_canopy",
+      "draw_layer": 30
+    },
+    {
+      "id": "crystal_spine",
+      "name": "Crystal Spine",
+      "slot": "armor",
+      "rarity": "special",
+      "color": "#48cae4",
+      "families": [
+        "construct",
+        "alien"
+      ],
+      "passive": {
+        "stat": "special_defense",
+        "bonus": 4
+      },
+      "sprite_key": "crystal_spine",
+      "draw_layer": 50
+    }
   ]
 }
