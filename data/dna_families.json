@@ -1,0 +1,12 @@
+{
+  "families": [
+    {"id": "beast", "name": "Beast", "description": "Warm-blooded terrestrial predators and prey."},
+    {"id": "dragon", "name": "Dragon", "description": "Ancient scaled apex forms."},
+    {"id": "bird", "name": "Bird", "description": "Winged and feathered lineages."},
+    {"id": "aquatic", "name": "Aquatic", "description": "Water-adapted organisms."},
+    {"id": "insect", "name": "Insect", "description": "Exoskeletal swarm DNA."},
+    {"id": "plant", "name": "Plant", "description": "Photosynthetic and fungal hybrids."},
+    {"id": "construct", "name": "Construct", "description": "Artificial or mineral-bound life."},
+    {"id": "alien", "name": "Alien", "description": "Meteor-born rewrite organisms."}
+  ]
+}

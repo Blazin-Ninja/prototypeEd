@@ -1,0 +1,1252 @@
+{
+  "creatures": [
+    {
+      "id": "ember_pup",
+      "name": "Ember Pup",
+      "description": "A fox-like spark born near the meteor scars.",
+      "is_starter": true,
+      "base_stats": {
+        "hp": 42,
+        "attack": 14,
+        "defense": 10,
+        "speed": 14,
+        "special_attack": 13,
+        "special_defense": 10,
+        "accuracy": 95,
+        "critical_chance": 8
+      },
+      "elements": [
+        "fire"
+      ],
+      "families": [
+        "beast",
+        "dragon"
+      ],
+      "abilities": [
+        "scratch",
+        "ember"
+      ],
+      "color": "#e85d04",
+      "shape": "quad",
+      "absorption": {
+        "stat_chance": 70,
+        "stat_gains": {
+          "attack": [
+            1,
+            3
+          ],
+          "special_attack": [
+            1,
+            2
+          ],
+          "speed": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 25,
+        "ability_pool": [
+          "fire_bite",
+          "flame_burst",
+          "slash"
+        ],
+        "element_chance": 20,
+        "element_pool": [
+          "fire",
+          "earth"
+        ],
+        "mutation_chance": 45,
+        "mutation_pool": [
+          "fur_thick",
+          "tail_flame",
+          "fangs_long",
+          "particles_embers",
+          "horns_small"
+        ],
+        "rare_passive_chance": 8,
+        "special_mutation_chance": 5,
+        "special_mutation_pool": [
+          "burning_aura"
+        ]
+      }
+    },
+    {
+      "id": "tide_fin",
+      "name": "Tide Fin",
+      "description": "A sleek aquatic scout with shimmering fins.",
+      "is_starter": true,
+      "base_stats": {
+        "hp": 44,
+        "attack": 11,
+        "defense": 12,
+        "speed": 13,
+        "special_attack": 14,
+        "special_defense": 12,
+        "accuracy": 95,
+        "critical_chance": 6
+      },
+      "elements": [
+        "water"
+      ],
+      "families": [
+        "aquatic"
+      ],
+      "abilities": [
+        "bite",
+        "water_pulse"
+      ],
+      "color": "#0077b6",
+      "shape": "fish",
+      "absorption": {
+        "stat_chance": 70,
+        "stat_gains": {
+          "special_attack": [
+            1,
+            3
+          ],
+          "special_defense": [
+            1,
+            2
+          ],
+          "hp": [
+            2,
+            4
+          ]
+        },
+        "ability_chance": 25,
+        "ability_pool": [
+          "tidal_crash",
+          "slash"
+        ],
+        "element_chance": 20,
+        "element_pool": [
+          "water",
+          "ice"
+        ],
+        "mutation_chance": 45,
+        "mutation_pool": [
+          "scales_green",
+          "fangs_long",
+          "tail_stub",
+          "body_bulk"
+        ],
+        "rare_passive_chance": 8,
+        "special_mutation_chance": 5,
+        "special_mutation_pool": [
+          "crystal_spine"
+        ]
+      }
+    },
+    {
+      "id": "sproutling",
+      "name": "Sproutling",
+      "description": "A seed-beast awakened by alien pollen.",
+      "is_starter": true,
+      "base_stats": {
+        "hp": 46,
+        "attack": 12,
+        "defense": 13,
+        "speed": 10,
+        "special_attack": 12,
+        "special_defense": 14,
+        "accuracy": 94,
+        "critical_chance": 5
+      },
+      "elements": [
+        "nature"
+      ],
+      "families": [
+        "plant",
+        "beast"
+      ],
+      "abilities": [
+        "vine_lash",
+        "scratch"
+      ],
+      "color": "#2d6a4f",
+      "shape": "plant",
+      "absorption": {
+        "stat_chance": 70,
+        "stat_gains": {
+          "defense": [
+            1,
+            3
+          ],
+          "special_defense": [
+            1,
+            3
+          ],
+          "hp": [
+            2,
+            5
+          ]
+        },
+        "ability_chance": 25,
+        "ability_pool": [
+          "bloom_burst",
+          "sting"
+        ],
+        "element_chance": 20,
+        "element_pool": [
+          "nature",
+          "poison"
+        ],
+        "mutation_chance": 45,
+        "mutation_pool": [
+          "skin_moss",
+          "particles_spores",
+          "horns_small",
+          "body_bulk"
+        ],
+        "rare_passive_chance": 8,
+        "special_mutation_chance": 5,
+        "special_mutation_pool": [
+          "particles_spores"
+        ]
+      }
+    },
+    {
+      "id": "gale_hatch",
+      "name": "Gale Hatch",
+      "description": "A fledgling that rides storm drafts.",
+      "is_starter": true,
+      "base_stats": {
+        "hp": 38,
+        "attack": 13,
+        "defense": 9,
+        "speed": 17,
+        "special_attack": 12,
+        "special_defense": 10,
+        "accuracy": 96,
+        "critical_chance": 10
+      },
+      "elements": [
+        "wind"
+      ],
+      "families": [
+        "bird"
+      ],
+      "abilities": [
+        "gust",
+        "scratch"
+      ],
+      "color": "#90e0ef",
+      "shape": "bird",
+      "absorption": {
+        "stat_chance": 70,
+        "stat_gains": {
+          "speed": [
+            1,
+            3
+          ],
+          "attack": [
+            1,
+            2
+          ],
+          "accuracy": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 25,
+        "ability_pool": [
+          "tempest_dive",
+          "slash"
+        ],
+        "element_chance": 20,
+        "element_pool": [
+          "wind",
+          "electric"
+        ],
+        "mutation_chance": 45,
+        "mutation_pool": [
+          "feathers_soft",
+          "wings_small",
+          "claws_sharp",
+          "eyes_glow"
+        ],
+        "rare_passive_chance": 8,
+        "special_mutation_chance": 5,
+        "special_mutation_pool": [
+          "wings_small"
+        ]
+      }
+    },
+    {
+      "id": "volt_cub",
+      "name": "Volt Cub",
+      "description": "A charged predator pup with crackling fur.",
+      "is_starter": true,
+      "base_stats": {
+        "hp": 40,
+        "attack": 14,
+        "defense": 10,
+        "speed": 15,
+        "special_attack": 13,
+        "special_defense": 10,
+        "accuracy": 95,
+        "critical_chance": 9
+      },
+      "elements": [
+        "electric"
+      ],
+      "families": [
+        "beast"
+      ],
+      "abilities": [
+        "spark",
+        "bite"
+      ],
+      "color": "#ffd60a",
+      "shape": "quad",
+      "absorption": {
+        "stat_chance": 70,
+        "stat_gains": {
+          "speed": [
+            1,
+            3
+          ],
+          "special_attack": [
+            1,
+            3
+          ],
+          "attack": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 25,
+        "ability_pool": [
+          "thunder_fang",
+          "slash"
+        ],
+        "element_chance": 20,
+        "element_pool": [
+          "electric",
+          "metal"
+        ],
+        "mutation_chance": 45,
+        "mutation_pool": [
+          "fur_thick",
+          "eyes_glow",
+          "claws_sharp",
+          "fangs_long"
+        ],
+        "rare_passive_chance": 8,
+        "special_mutation_chance": 5,
+        "special_mutation_pool": [
+          "alpha_crest"
+        ]
+      }
+    },
+    {
+      "id": "brush_rat",
+      "name": "Brush Rat",
+      "description": "Skittish forest scavenger.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 28,
+        "attack": 10,
+        "defense": 8,
+        "speed": 14,
+        "special_attack": 8,
+        "special_defense": 8,
+        "accuracy": 92,
+        "critical_chance": 6
+      },
+      "elements": [
+        "earth"
+      ],
+      "families": [
+        "beast"
+      ],
+      "abilities": [
+        "scratch",
+        "bite"
+      ],
+      "color": "#8b5e34",
+      "shape": "quad",
+      "encounter_weight": 30,
+      "absorption": {
+        "stat_chance": 55,
+        "stat_gains": {
+          "attack": [
+            1,
+            2
+          ],
+          "speed": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 18,
+        "ability_pool": [
+          "slash",
+          "pebble_shot"
+        ],
+        "element_chance": 12,
+        "element_pool": [
+          "earth"
+        ],
+        "mutation_chance": 35,
+        "mutation_pool": [
+          "fur_thick",
+          "tail_stub",
+          "claws_sharp"
+        ],
+        "rare_passive_chance": 4,
+        "special_mutation_chance": 2,
+        "special_mutation_pool": [
+          "body_bulk"
+        ]
+      }
+    },
+    {
+      "id": "leaf_mite",
+      "name": "Leaf Mite",
+      "description": "A tiny insect cloaked in foliage.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 24,
+        "attack": 9,
+        "defense": 7,
+        "speed": 16,
+        "special_attack": 11,
+        "special_defense": 8,
+        "accuracy": 94,
+        "critical_chance": 7
+      },
+      "elements": [
+        "nature",
+        "poison"
+      ],
+      "families": [
+        "insect",
+        "plant"
+      ],
+      "abilities": [
+        "sting",
+        "vine_lash"
+      ],
+      "color": "#52b788",
+      "shape": "bug",
+      "encounter_weight": 25,
+      "absorption": {
+        "stat_chance": 55,
+        "stat_gains": {
+          "special_attack": [
+            1,
+            2
+          ],
+          "speed": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 20,
+        "ability_pool": [
+          "toxin_spray",
+          "bloom_burst"
+        ],
+        "element_chance": 15,
+        "element_pool": [
+          "nature",
+          "poison"
+        ],
+        "mutation_chance": 35,
+        "mutation_pool": [
+          "skin_moss",
+          "particles_spores",
+          "claws_sharp"
+        ],
+        "rare_passive_chance": 5,
+        "special_mutation_chance": 2,
+        "special_mutation_pool": [
+          "particles_spores"
+        ]
+      }
+    },
+    {
+      "id": "canopy_owl",
+      "name": "Canopy Owl",
+      "description": "Silent hunter of the upper green.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 32,
+        "attack": 12,
+        "defense": 9,
+        "speed": 15,
+        "special_attack": 11,
+        "special_defense": 10,
+        "accuracy": 96,
+        "critical_chance": 12
+      },
+      "elements": [
+        "wind"
+      ],
+      "families": [
+        "bird"
+      ],
+      "abilities": [
+        "gust",
+        "scratch"
+      ],
+      "color": "#95d5b2",
+      "shape": "bird",
+      "encounter_weight": 18,
+      "absorption": {
+        "stat_chance": 60,
+        "stat_gains": {
+          "speed": [
+            1,
+            3
+          ],
+          "accuracy": [
+            1,
+            3
+          ],
+          "critical_chance": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 22,
+        "ability_pool": [
+          "tempest_dive",
+          "slash"
+        ],
+        "element_chance": 14,
+        "element_pool": [
+          "wind"
+        ],
+        "mutation_chance": 40,
+        "mutation_pool": [
+          "feathers_soft",
+          "wings_small",
+          "eyes_glow",
+          "claws_sharp"
+        ],
+        "rare_passive_chance": 6,
+        "special_mutation_chance": 3,
+        "special_mutation_pool": [
+          "wings_small"
+        ]
+      }
+    },
+    {
+      "id": "mossback",
+      "name": "Mossback",
+      "description": "A lumbering shelled grazer.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 40,
+        "attack": 11,
+        "defense": 16,
+        "speed": 7,
+        "special_attack": 8,
+        "special_defense": 14,
+        "accuracy": 90,
+        "critical_chance": 3
+      },
+      "elements": [
+        "nature",
+        "earth"
+      ],
+      "families": [
+        "beast",
+        "plant"
+      ],
+      "abilities": [
+        "pebble_shot",
+        "vine_lash"
+      ],
+      "color": "#40916c",
+      "shape": "bulk",
+      "encounter_weight": 15,
+      "absorption": {
+        "stat_chance": 65,
+        "stat_gains": {
+          "defense": [
+            1,
+            3
+          ],
+          "hp": [
+            2,
+            5
+          ],
+          "special_defense": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 18,
+        "ability_pool": [
+          "quake_slam",
+          "harden"
+        ],
+        "element_chance": 16,
+        "element_pool": [
+          "earth",
+          "nature"
+        ],
+        "mutation_chance": 40,
+        "mutation_pool": [
+          "armor_plates",
+          "skin_moss",
+          "body_bulk",
+          "scales_green"
+        ],
+        "rare_passive_chance": 6,
+        "special_mutation_chance": 3,
+        "special_mutation_pool": [
+          "armor_plates"
+        ]
+      }
+    },
+    {
+      "id": "pine_wolf",
+      "name": "Pine Wolf",
+      "description": "Pack hunter of the deep woods.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 34,
+        "attack": 15,
+        "defense": 10,
+        "speed": 14,
+        "special_attack": 9,
+        "special_defense": 9,
+        "accuracy": 95,
+        "critical_chance": 10
+      },
+      "elements": [
+        "nature"
+      ],
+      "families": [
+        "beast"
+      ],
+      "abilities": [
+        "bite",
+        "slash"
+      ],
+      "color": "#3a5a40",
+      "shape": "quad",
+      "encounter_weight": 12,
+      "absorption": {
+        "stat_chance": 65,
+        "stat_gains": {
+          "attack": [
+            1,
+            3
+          ],
+          "speed": [
+            1,
+            2
+          ],
+          "critical_chance": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 24,
+        "ability_pool": [
+          "rending_slash",
+          "fire_bite"
+        ],
+        "element_chance": 12,
+        "element_pool": [
+          "nature",
+          "shadow"
+        ],
+        "mutation_chance": 42,
+        "mutation_pool": [
+          "fangs_long",
+          "fur_thick",
+          "claws_sharp",
+          "horns_small",
+          "tail_stub"
+        ],
+        "rare_passive_chance": 7,
+        "special_mutation_chance": 3,
+        "special_mutation_pool": [
+          "horns_curved"
+        ]
+      }
+    },
+    {
+      "id": "glow_toad",
+      "name": "Glow Toad",
+      "description": "Amphibian with bioluminescent toxins.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 36,
+        "attack": 10,
+        "defense": 11,
+        "speed": 9,
+        "special_attack": 14,
+        "special_defense": 12,
+        "accuracy": 93,
+        "critical_chance": 5
+      },
+      "elements": [
+        "poison",
+        "water"
+      ],
+      "families": [
+        "aquatic",
+        "alien"
+      ],
+      "abilities": [
+        "toxin_spray",
+        "water_pulse"
+      ],
+      "color": "#7b2cbf",
+      "shape": "bulk",
+      "encounter_weight": 10,
+      "absorption": {
+        "stat_chance": 60,
+        "stat_gains": {
+          "special_attack": [
+            1,
+            3
+          ],
+          "special_defense": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 22,
+        "ability_pool": [
+          "toxin_spray",
+          "shadow_nudge"
+        ],
+        "element_chance": 18,
+        "element_pool": [
+          "poison",
+          "water",
+          "shadow"
+        ],
+        "mutation_chance": 40,
+        "mutation_pool": [
+          "eyes_glow",
+          "skin_ash",
+          "scales_green",
+          "alien_ridges"
+        ],
+        "rare_passive_chance": 8,
+        "special_mutation_chance": 4,
+        "special_mutation_pool": [
+          "alien_ridges"
+        ]
+      }
+    },
+    {
+      "id": "thorn_boar",
+      "name": "Thorn Boar",
+      "description": "Aggressive tusker laced with briars.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 38,
+        "attack": 16,
+        "defense": 12,
+        "speed": 10,
+        "special_attack": 8,
+        "special_defense": 10,
+        "accuracy": 92,
+        "critical_chance": 8
+      },
+      "elements": [
+        "nature",
+        "earth"
+      ],
+      "families": [
+        "beast",
+        "plant"
+      ],
+      "abilities": [
+        "bite",
+        "vine_lash"
+      ],
+      "color": "#588157",
+      "shape": "quad",
+      "encounter_weight": 10,
+      "absorption": {
+        "stat_chance": 65,
+        "stat_gains": {
+          "attack": [
+            2,
+            3
+          ],
+          "defense": [
+            1,
+            2
+          ],
+          "hp": [
+            2,
+            4
+          ]
+        },
+        "ability_chance": 20,
+        "ability_pool": [
+          "rending_slash",
+          "quake_slam"
+        ],
+        "element_chance": 14,
+        "element_pool": [
+          "nature",
+          "earth"
+        ],
+        "mutation_chance": 40,
+        "mutation_pool": [
+          "horns_curved",
+          "fangs_long",
+          "armor_plates",
+          "skin_moss"
+        ],
+        "rare_passive_chance": 6,
+        "special_mutation_chance": 3,
+        "special_mutation_pool": [
+          "horns_curved"
+        ]
+      }
+    },
+    {
+      "id": "spore_bat",
+      "name": "Spore Bat",
+      "description": "Night flyer trailing fungal dust.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 26,
+        "attack": 11,
+        "defense": 8,
+        "speed": 17,
+        "special_attack": 13,
+        "special_defense": 9,
+        "accuracy": 94,
+        "critical_chance": 11
+      },
+      "elements": [
+        "poison",
+        "wind"
+      ],
+      "families": [
+        "bird",
+        "insect",
+        "plant"
+      ],
+      "abilities": [
+        "gust",
+        "sting"
+      ],
+      "color": "#9b5de5",
+      "shape": "bird",
+      "encounter_weight": 12,
+      "absorption": {
+        "stat_chance": 58,
+        "stat_gains": {
+          "speed": [
+            1,
+            3
+          ],
+          "special_attack": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 20,
+        "ability_pool": [
+          "toxin_spray",
+          "tempest_dive"
+        ],
+        "element_chance": 15,
+        "element_pool": [
+          "poison",
+          "wind"
+        ],
+        "mutation_chance": 38,
+        "mutation_pool": [
+          "wings_small",
+          "particles_spores",
+          "eyes_glow",
+          "feathers_soft"
+        ],
+        "rare_passive_chance": 6,
+        "special_mutation_chance": 3,
+        "special_mutation_pool": [
+          "particles_spores"
+        ]
+      }
+    },
+    {
+      "id": "root_serpent",
+      "name": "Root Serpent",
+      "description": "Coiling predator fused with living roots.",
+      "region": "forest",
+      "base_stats": {
+        "hp": 35,
+        "attack": 14,
+        "defense": 11,
+        "speed": 12,
+        "special_attack": 12,
+        "special_defense": 11,
+        "accuracy": 95,
+        "critical_chance": 8
+      },
+      "elements": [
+        "nature",
+        "shadow"
+      ],
+      "families": [
+        "beast",
+        "plant",
+        "alien"
+      ],
+      "abilities": [
+        "vine_lash",
+        "shadow_nudge"
+      ],
+      "color": "#1b4332",
+      "shape": "serpent",
+      "encounter_weight": 8,
+      "absorption": {
+        "stat_chance": 62,
+        "stat_gains": {
+          "attack": [
+            1,
+            3
+          ],
+          "special_attack": [
+            1,
+            3
+          ]
+        },
+        "ability_chance": 24,
+        "ability_pool": [
+          "bloom_burst",
+          "void_rend"
+        ],
+        "element_chance": 16,
+        "element_pool": [
+          "nature",
+          "shadow"
+        ],
+        "mutation_chance": 42,
+        "mutation_pool": [
+          "scales_green",
+          "alien_ridges",
+          "eyes_glow",
+          "skin_moss"
+        ],
+        "rare_passive_chance": 8,
+        "special_mutation_chance": 4,
+        "special_mutation_pool": [
+          "alien_ridges"
+        ]
+      }
+    },
+    {
+      "id": "elder_treant",
+      "name": "Elder Treant",
+      "description": "Forest boss. Ancient guardian twisted by meteor DNA.",
+      "region": "forest",
+      "is_boss": true,
+      "base_stats": {
+        "hp": 120,
+        "attack": 22,
+        "defense": 20,
+        "speed": 10,
+        "special_attack": 24,
+        "special_defense": 22,
+        "accuracy": 94,
+        "critical_chance": 8
+      },
+      "elements": [
+        "nature",
+        "earth"
+      ],
+      "families": [
+        "plant",
+        "beast"
+      ],
+      "abilities": [
+        "forest_wrath",
+        "quake_slam",
+        "bloom_burst",
+        "vine_lash"
+      ],
+      "color": "#081c15",
+      "shape": "bulk",
+      "encounter_weight": 0,
+      "absorption": {
+        "stat_chance": 100,
+        "stat_gains": {
+          "hp": [
+            5,
+            10
+          ],
+          "defense": [
+            2,
+            5
+          ],
+          "special_attack": [
+            2,
+            5
+          ],
+          "special_defense": [
+            2,
+            5
+          ]
+        },
+        "ability_chance": 80,
+        "ability_pool": [
+          "forest_wrath",
+          "rending_slash",
+          "execution_strike"
+        ],
+        "element_chance": 50,
+        "element_pool": [
+          "nature",
+          "earth",
+          "shadow"
+        ],
+        "mutation_chance": 90,
+        "mutation_pool": [
+          "boss_canopy",
+          "armor_plates",
+          "body_bulk",
+          "horns_curved"
+        ],
+        "rare_passive_chance": 40,
+        "special_mutation_chance": 35,
+        "special_mutation_pool": [
+          "boss_canopy",
+          "crystal_spine"
+        ]
+      }
+    },
+    {
+      "id": "hive_heart",
+      "name": "Hive Heart",
+      "description": "The alien core. Final MVP boss.",
+      "region": "meteor_hive",
+      "is_boss": true,
+      "base_stats": {
+        "hp": 160,
+        "attack": 28,
+        "defense": 22,
+        "speed": 14,
+        "special_attack": 30,
+        "special_defense": 24,
+        "accuracy": 94,
+        "critical_chance": 10
+      },
+      "elements": [
+        "shadow",
+        "poison"
+      ],
+      "families": [
+        "alien"
+      ],
+      "abilities": [
+        "void_rend",
+        "toxin_spray",
+        "alpha_roar",
+        "shadow_nudge"
+      ],
+      "color": "#5a189a",
+      "shape": "bulk",
+      "encounter_weight": 0,
+      "absorption": {
+        "stat_chance": 100,
+        "stat_gains": {
+          "hp": [
+            8,
+            14
+          ],
+          "special_attack": [
+            3,
+            6
+          ],
+          "attack": [
+            3,
+            6
+          ]
+        },
+        "ability_chance": 90,
+        "ability_pool": [
+          "void_rend",
+          "execution_strike"
+        ],
+        "element_chance": 60,
+        "element_pool": [
+          "shadow",
+          "poison",
+          "metal"
+        ],
+        "mutation_chance": 95,
+        "mutation_pool": [
+          "alien_ridges",
+          "eyes_glow",
+          "crystal_spine"
+        ],
+        "rare_passive_chance": 50,
+        "special_mutation_chance": 40,
+        "special_mutation_pool": [
+          "alien_ridges",
+          "crystal_spine"
+        ]
+      }
+    },
+    {
+      "id": "void_mite",
+      "name": "Void Mite",
+      "description": "Hive drone scrap.",
+      "region": "meteor_hive",
+      "base_stats": {
+        "hp": 40,
+        "attack": 16,
+        "defense": 12,
+        "speed": 16,
+        "special_attack": 18,
+        "special_defense": 12,
+        "accuracy": 95,
+        "critical_chance": 10
+      },
+      "elements": [
+        "shadow"
+      ],
+      "families": [
+        "alien",
+        "insect"
+      ],
+      "abilities": [
+        "shadow_nudge",
+        "sting"
+      ],
+      "color": "#7b2cbf",
+      "shape": "bug",
+      "encounter_weight": 20,
+      "absorption": {
+        "stat_chance": 70,
+        "stat_gains": {
+          "special_attack": [
+            1,
+            3
+          ],
+          "speed": [
+            1,
+            2
+          ]
+        },
+        "ability_chance": 28,
+        "ability_pool": [
+          "void_rend",
+          "toxin_spray"
+        ],
+        "element_chance": 20,
+        "element_pool": [
+          "shadow",
+          "poison"
+        ],
+        "mutation_chance": 45,
+        "mutation_pool": [
+          "alien_ridges",
+          "eyes_glow",
+          "particles_embers"
+        ],
+        "rare_passive_chance": 10,
+        "special_mutation_chance": 6,
+        "special_mutation_pool": [
+          "alien_ridges"
+        ]
+      }
+    },
+    {
+      "id": "spore_host",
+      "name": "Spore Host",
+      "description": "Infected vessel of the hive.",
+      "region": "meteor_hive",
+      "base_stats": {
+        "hp": 48,
+        "attack": 14,
+        "defense": 14,
+        "speed": 11,
+        "special_attack": 20,
+        "special_defense": 16,
+        "accuracy": 93,
+        "critical_chance": 7
+      },
+      "elements": [
+        "poison",
+        "shadow"
+      ],
+      "families": [
+        "alien",
+        "plant"
+      ],
+      "abilities": [
+        "toxin_spray",
+        "bloom_burst"
+      ],
+      "color": "#3c096c",
+      "shape": "bulk",
+      "encounter_weight": 15,
+      "absorption": {
+        "stat_chance": 72,
+        "stat_gains": {
+          "hp": [
+            2,
+            5
+          ],
+          "special_defense": [
+            1,
+            3
+          ]
+        },
+        "ability_chance": 26,
+        "ability_pool": [
+          "void_rend",
+          "forest_wrath"
+        ],
+        "element_chance": 22,
+        "element_pool": [
+          "poison",
+          "shadow",
+          "nature"
+        ],
+        "mutation_chance": 48,
+        "mutation_pool": [
+          "particles_spores",
+          "alien_ridges",
+          "skin_ash"
+        ],
+        "rare_passive_chance": 10,
+        "special_mutation_chance": 6,
+        "special_mutation_pool": [
+          "crystal_spine"
+        ]
+      }
+    }
+  ],
+  "stat_caps": {
+    "hp": 250,
+    "attack": 80,
+    "defense": 80,
+    "speed": 80,
+    "special_attack": 80,
+    "special_defense": 80,
+    "accuracy": 100,
+    "critical_chance": 40
+  },
+  "alpha": {
+    "base_chance": 0.01,
+    "stat_multiplier": 1.35,
+    "name_prefix": "Alpha",
+    "bonus_ability": "alpha_roar",
+    "bonus_mutation": "alpha_crest",
+    "absorb_bonus": 1.5
+  },
+  "legendary": {
+    "base_chance": 0.001,
+    "stat_multiplier": 1.75
+  }
+}

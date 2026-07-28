@@ -1,0 +1,104 @@
+[gd_scene load_steps=2 format=3 uid="uid://battle001"]
+
+[ext_resource type="Script" path="res://scripts/ui/Battle.gd" id="1"]
+
+[node name="Battle" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1")
+
+[node name="BG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.09, 0.1, 0.12, 1)
+
+[node name="Safe" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 36
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Safe"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Battlers" type="HBoxContainer" parent="Safe/VBox"]
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayerCol" type="VBoxContainer" parent="Safe/VBox/Battlers"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PName" type="Label" parent="Safe/VBox/Battlers/PlayerCol"]
+layout_mode = 2
+text = "Player"
+horizontal_alignment = 1
+
+[node name="PHP" type="ProgressBar" parent="Safe/VBox/Battlers/PlayerCol"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+show_percentage = false
+
+[node name="PView" type="Control" parent="Safe/VBox/Battlers/PlayerCol"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EnemyCol" type="VBoxContainer" parent="Safe/VBox/Battlers"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EName" type="Label" parent="Safe/VBox/Battlers/EnemyCol"]
+layout_mode = 2
+text = "Enemy"
+horizontal_alignment = 1
+
+[node name="EHP" type="ProgressBar" parent="Safe/VBox/Battlers/EnemyCol"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+show_percentage = false
+
+[node name="EView" type="Control" parent="Safe/VBox/Battlers/EnemyCol"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Log" type="RichTextLabel" parent="Safe/VBox"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+
+[node name="Actions" type="HBoxContainer" parent="Safe/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="FightBtn" type="Button" parent="Safe/VBox/Actions"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "Fight"
+
+[node name="FleeBtn" type="Button" parent="Safe/VBox/Actions"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "Flee"
+
+[node name="AbilityList" type="VBoxContainer" parent="Safe/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
