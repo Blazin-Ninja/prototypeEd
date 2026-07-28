@@ -6,22 +6,16 @@
       "index": 1,
       "description": "Twisted woodland where the first meteor shards fell.",
       "intro": "The canopy blots out the sun. Alien roots pulse beneath the soil.",
-      "map_width": 12,
-      "map_height": 16,
-      "grass_encounter_chance": 0.18,
+      "map_width": 36,
+      "map_height": 48,
+      "room_count": 11,
+      "wild_count": 5,
+      "hazard": "water",
+      "grass_encounter_chance": 0.08,
       "boss_id": "elder_treant",
-      "boss_cell": {
-        "x": 6,
-        "y": 1
-      },
-      "camp_cell": {
-        "x": 1,
-        "y": 14
-      },
-      "start_cell": {
-        "x": 1,
-        "y": 14
-      },
+      "boss_cell": { "x": 18, "y": 5 },
+      "camp_cell": { "x": 8, "y": 42 },
+      "start_cell": { "x": 8, "y": 42 },
       "next_region": "desert",
       "ground_color": "#1b4332",
       "grass_color": "#2d6a4f",
@@ -34,22 +28,16 @@
       "index": 2,
       "description": "Scorched dunes hiding buried alien nests.",
       "intro": "Heat shimmer warps the horizon. Something digs beneath the sand.",
-      "map_width": 12,
-      "map_height": 16,
-      "grass_encounter_chance": 0.18,
+      "map_width": 40,
+      "map_height": 52,
+      "room_count": 12,
+      "wild_count": 5,
+      "hazard": "lava",
+      "grass_encounter_chance": 0.08,
       "boss_id": "solar_colossus",
-      "boss_cell": {
-        "x": 6,
-        "y": 1
-      },
-      "camp_cell": {
-        "x": 1,
-        "y": 14
-      },
-      "start_cell": {
-        "x": 1,
-        "y": 14
-      },
+      "boss_cell": { "x": 22, "y": 5 },
+      "camp_cell": { "x": 10, "y": 46 },
+      "start_cell": { "x": 10, "y": 46 },
       "next_region": "frozen_mountains",
       "ground_color": "#bb9457",
       "grass_color": "#d4a373",
@@ -63,22 +51,16 @@
       "index": 3,
       "description": "Glacial peaks cracked by meteor ice.",
       "intro": "Wind howls through crystal spires older than memory.",
-      "map_width": 12,
-      "map_height": 16,
-      "grass_encounter_chance": 0.16,
+      "map_width": 38,
+      "map_height": 50,
+      "room_count": 11,
+      "wild_count": 4,
+      "hazard": "ice",
+      "grass_encounter_chance": 0.07,
       "boss_id": "glacier_titan",
-      "boss_cell": {
-        "x": 6,
-        "y": 1
-      },
-      "camp_cell": {
-        "x": 1,
-        "y": 14
-      },
-      "start_cell": {
-        "x": 1,
-        "y": 14
-      },
+      "boss_cell": { "x": 20, "y": 5 },
+      "camp_cell": { "x": 9, "y": 44 },
+      "start_cell": { "x": 9, "y": 44 },
       "next_region": "alien_lab",
       "ground_color": "#ade8f4",
       "grass_color": "#90e0ef",
@@ -92,22 +74,16 @@
       "index": 4,
       "description": "A ruined facility where DNA was rewritten.",
       "intro": "Broken glass and humming tanks. The experiments never stopped.",
-      "map_width": 12,
-      "map_height": 16,
-      "grass_encounter_chance": 0.2,
+      "map_width": 40,
+      "map_height": 52,
+      "room_count": 12,
+      "wild_count": 5,
+      "hazard": "void",
+      "grass_encounter_chance": 0.09,
       "boss_id": "prime_chimera",
-      "boss_cell": {
-        "x": 6,
-        "y": 1
-      },
-      "camp_cell": {
-        "x": 1,
-        "y": 14
-      },
-      "start_cell": {
-        "x": 1,
-        "y": 14
-      },
+      "boss_cell": { "x": 22, "y": 5 },
+      "camp_cell": { "x": 10, "y": 46 },
+      "start_cell": { "x": 10, "y": 46 },
       "next_region": "meteor_hive",
       "ground_color": "#3c096c",
       "grass_color": "#5a189a",
@@ -121,22 +97,16 @@
       "index": 5,
       "description": "The alien heart of the invasion. MVP finale.",
       "intro": "The hive breathes. One bond. One chance.",
-      "map_width": 12,
-      "map_height": 16,
-      "grass_encounter_chance": 0.22,
+      "map_width": 42,
+      "map_height": 56,
+      "room_count": 13,
+      "wild_count": 6,
+      "hazard": "lava",
+      "grass_encounter_chance": 0.1,
       "boss_id": "hive_heart",
-      "boss_cell": {
-        "x": 6,
-        "y": 1
-      },
-      "camp_cell": {
-        "x": 1,
-        "y": 14
-      },
-      "start_cell": {
-        "x": 1,
-        "y": 14
-      },
+      "boss_cell": { "x": 21, "y": 5 },
+      "camp_cell": { "x": 10, "y": 50 },
+      "start_cell": { "x": 10, "y": 50 },
       "next_region": null,
       "ground_color": "#10002b",
       "grass_color": "#240046",

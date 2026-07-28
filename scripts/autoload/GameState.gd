@@ -32,13 +32,18 @@ func continue_run() -> bool:
 func start_new_run(starter_id: String) -> void:
 	var companion := CreatureFactory.create_from_template(starter_id, {"is_player": true})
 	ProgressionSystem.apply_starting_passives(companion, account)
+	var forest := DataRegistry.get_region("forest")
+	var start: Dictionary = forest.get("start_cell", {"x": 8, "y": 42})
 	run = {
 		"version": 1,
 		"starter_id": starter_id,
 		"companion": companion,
 		"region_id": "forest",
 		"unlocked_regions": ["forest"],
-		"player_pos": {"x": 1.5, "y": 14.5},
+		"player_pos": {
+			"x": float(start.get("x", 8)) + 0.5,
+			"y": float(start.get("y", 42)) + 0.5
+		},
 		"regions_cleared": [],
 		"battles_won": 0,
 		"absorptions": 0,

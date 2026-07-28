@@ -7,8 +7,8 @@ const PLAYER_RADIUS := 0.28
 const WILD_RADIUS := 0.35
 const CONTACT_DIST := 0.72
 const SAVE_INTERVAL := 1.25
-const WILD_COUNT := 8
-const WILD_SPEED := 1.15
+const WILD_SPEED := 1.05
+const DEFAULT_WILD_COUNT := 5
 const TEST_MODE := true ## Infinite heal + easier testing aids.
 
 @onready var map_draw: Control = $MapArea/MapDraw
@@ -83,6 +83,10 @@ func _load_region() -> void:
 	_pos = _read_saved_pos()
 	_pos.x = clampf(_pos.x, 1.2, float(_map.width) - 1.2)
 	_pos.y = clampf(_pos.y, 1.2, float(_map.height) - 1.2)
+	# If a prior save left us inside a hazard on a newly generated floor, snap to camp.
+	if not _can_occupy_radius(_pos, PLAYER_RADIUS):
+		var camp: Vector2i = _map.camp
+		_pos = Vector2(float(camp.x) + 0.5, float(camp.y) + 0.5)
 	_persist_pos(false)
 	_last_tile = _tile_at(_pos)
 	_spawn_wilds()
@@ -120,10 +124,22 @@ func _spawn_wilds() -> void:
 	var cells := _grass_cells()
 	if cells.is_empty():
 		return
-	var count := mini(WILD_COUNT, cells.size())
-	cells.shuffle()
+	var camp: Vector2i = _map.camp
+	# Keep the approach to camp clear so floors feel sparse and readable.
+	var filtered: Array = []
+	for cell in cells:
+		var c: Vector2i = cell
+		if absi(c.x - camp.x) + absi(c.y - camp.y) < 7:
+			continue
+		filtered.append(c)
+	if filtered.is_empty():
+		filtered = cells
+	var want := int(region.get("wild_count", DEFAULT_WILD_COUNT))
+	want = clampi(want, 2, 10)
+	var count := mini(want, filtered.size())
+	filtered.shuffle()
 	for i in count:
-		var cell: Vector2i = cells[i]
+		var cell: Vector2i = filtered[i]
 		var wild := EncounterSystem.roll_wild(str(region.get("id")), GameState.account)
 		if wild.is_empty():
 			continue
@@ -146,10 +162,10 @@ func _setup_boss_marker() -> void:
 	var boss := EncounterSystem.create_boss(region)
 	if boss.is_empty():
 		return
-	var bc: Dictionary = region.get("boss_cell", {"x": 6, "y": 1})
+	var bc: Vector2i = _map.get("boss", Vector2i(6, 1))
 	_boss_marker = {
 		"creature": boss,
-		"pos": Vector2(float(bc.get("x", 6)) + 0.5, float(bc.get("y", 1)) + 0.5)
+		"pos": Vector2(float(bc.x) + 0.5, float(bc.y) + 0.5)
 	}
 
 func _show_intro_once() -> void:
@@ -160,7 +176,7 @@ func _show_intro_once() -> void:
 	message.text = "%s\n%s" % [region.get("name"), region.get("intro", "")]
 	await get_tree().create_timer(1.6).timeout
 	if is_inside_tree():
-		message.text = "Walk into creatures to battle. Yellow camp heals. Red boss waits at the north path."
+		message.text = "Explore the dungeon floor. Bridges cross hazards. Yellow camp heals. Red boss waits deep ahead."
 
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
@@ -306,7 +322,6 @@ func _draw_map() -> void:
 	if _map.is_empty():
 		return
 	var region := GameState.current_region()
-	var ground := Color.html(str(region.get("ground_color", "#1b4332")))
 	var grass := Color.html(str(region.get("grass_color", "#2d6a4f")))
 	var path := Color.html(str(region.get("path_color", "#52796f")))
 	var tiles: Array = _map.tiles
@@ -316,25 +331,64 @@ func _draw_map() -> void:
 		map_draw.size.x * 0.5 - _pos.x * TILE,
 		map_draw.size.y * 0.45 - _pos.y * TILE
 	)
-	for y in map_h:
-		for x in map_w:
+	# Cull to visible viewport for large dungeon floors.
+	var pad := 2
+	var min_x := clampi(int((-origin.x) / TILE) - pad, 0, map_w - 1)
+	var min_y := clampi(int((-origin.y) / TILE) - pad, 0, map_h - 1)
+	var max_x := clampi(int((map_draw.size.x - origin.x) / TILE) + pad, 0, map_w - 1)
+	var max_y := clampi(int((map_draw.size.y - origin.y) / TILE) + pad, 0, map_h - 1)
+	var pulse := 0.5 + 0.5 * sin(_bob_t * 2.2)
+	for y in range(min_y, max_y + 1):
+		for x in range(min_x, max_x + 1):
 			var t: int = tiles[y][x]
 			var rect := Rect2(origin + Vector2(x, y) * TILE, Vector2(TILE - 1, TILE - 1))
-			var col := ground
 			match t:
-				MapGenerator.TILE_GRASS: col = grass
-				MapGenerator.TILE_PATH: col = path
-				MapGenerator.TILE_WALL: col = Color(0.05, 0.07, 0.06)
-				MapGenerator.TILE_CAMP: col = Color(0.85, 0.7, 0.35)
-				MapGenerator.TILE_BOSS: col = Color(0.65, 0.15, 0.2)
-				MapGenerator.TILE_EXIT: col = Color(0.3, 0.55, 0.85)
-			map_draw.draw_rect(rect, col)
+				MapGenerator.TILE_GRASS:
+					map_draw.draw_rect(rect, grass)
+				MapGenerator.TILE_PATH:
+					map_draw.draw_rect(rect, path)
+				MapGenerator.TILE_WALL:
+					map_draw.draw_rect(rect, Color(0.05, 0.07, 0.06))
+				MapGenerator.TILE_CAMP:
+					map_draw.draw_rect(rect, Color(0.85, 0.7, 0.35))
+				MapGenerator.TILE_BOSS:
+					map_draw.draw_rect(rect, Color(0.65, 0.15, 0.2))
+				MapGenerator.TILE_EXIT:
+					map_draw.draw_rect(rect, Color(0.3, 0.55, 0.85))
+				MapGenerator.TILE_LAVA:
+					var lava := Color(0.75 + 0.15 * pulse, 0.22, 0.05)
+					map_draw.draw_rect(rect, lava)
+					map_draw.draw_circle(rect.get_center() + Vector2(sin(x + _bob_t) * 4.0, cos(y + _bob_t) * 3.0), 4.0, Color(1.0, 0.7, 0.2, 0.45))
+				MapGenerator.TILE_WATER:
+					var water := Color(0.12, 0.35 + 0.1 * pulse, 0.55)
+					map_draw.draw_rect(rect, water)
+					map_draw.draw_line(rect.position + Vector2(6, 18), rect.position + Vector2(34, 14), Color(0.55, 0.8, 0.95, 0.35), 2.0)
+				MapGenerator.TILE_VOID:
+					map_draw.draw_rect(rect, Color(0.08, 0.02, 0.14))
+					map_draw.draw_circle(rect.get_center(), 8.0 + pulse * 3.0, Color(0.35, 0.05, 0.45, 0.55))
+				MapGenerator.TILE_BRIDGE:
+					map_draw.draw_rect(rect, Color(0.35, 0.22, 0.12))
+					# Plank lines
+					var p0 := rect.position
+					map_draw.draw_line(p0 + Vector2(4, 10), p0 + Vector2(40, 10), Color(0.55, 0.38, 0.2), 2.0)
+					map_draw.draw_line(p0 + Vector2(4, 22), p0 + Vector2(40, 22), Color(0.55, 0.38, 0.2), 2.0)
+					map_draw.draw_line(p0 + Vector2(4, 34), p0 + Vector2(40, 34), Color(0.55, 0.38, 0.2), 2.0)
+					map_draw.draw_rect(Rect2(p0 + Vector2(1, 1), Vector2(TILE - 3, TILE - 3)), Color(0.2, 0.12, 0.06), false, 2.0)
+				MapGenerator.TILE_ROCK:
+					map_draw.draw_rect(rect, Color(0.22, 0.22, 0.24))
+					map_draw.draw_circle(rect.get_center() + Vector2(-4, 2), 10.0, Color(0.35, 0.34, 0.36))
+					map_draw.draw_circle(rect.get_center() + Vector2(6, -3), 7.0, Color(0.4, 0.38, 0.4))
+				_:
+					map_draw.draw_rect(rect, Color(0.1, 0.1, 0.12))
 
-	# Visible wild creatures
+	# Visible wild creatures (also culled)
+	var view := Rect2(Vector2.ZERO, map_draw.size).grow(64.0)
 	for wild in _wilds:
 		var wp: Vector2 = wild["pos"]
 		var bob := sin(float(wild.get("bob", 0.0))) * 2.0
 		var cpos := origin + wp * TILE + Vector2(0.0, bob)
+		if not view.has_point(cpos):
+			continue
 		map_draw.draw_circle(cpos + Vector2(0, 9), 8.0, Color(0, 0, 0, 0.22))
 		PlaceholderArt.draw_creature(map_draw, wild["creature"], cpos, 12.0)
 		var n := str(wild["creature"].get("name", "?"))
@@ -344,9 +398,10 @@ func _draw_map() -> void:
 	if not _boss_marker.is_empty():
 		var bp: Vector2 = _boss_marker["pos"]
 		var bpos := origin + bp * TILE
-		map_draw.draw_circle(bpos, 18.0, Color(0.7, 0.1, 0.15, 0.25))
-		PlaceholderArt.draw_creature(map_draw, _boss_marker["creature"], bpos, 16.0)
-		map_draw.draw_string(ThemeDB.fallback_font, bpos + Vector2(-40, -26), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 80, 12, Color(1, 0.75, 0.75, 0.95))
+		if view.has_point(bpos):
+			map_draw.draw_circle(bpos, 18.0, Color(0.7, 0.1, 0.15, 0.25))
+			PlaceholderArt.draw_creature(map_draw, _boss_marker["creature"], bpos, 16.0)
+			map_draw.draw_string(ThemeDB.fallback_font, bpos + Vector2(-40, -26), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 80, 12, Color(1, 0.75, 0.75, 0.95))
 
 	# Player: human trainer with companion on shoulder
 	var center := origin + _pos * TILE
@@ -439,16 +494,17 @@ func _rebuild_regions() -> void:
 
 func _travel(region_id: String) -> void:
 	GameState.change_region(region_id)
-	var region := DataRegistry.get_region(region_id)
-	var start: Dictionary = region.get("start_cell", {"x": 1, "y": 14})
-	GameState.run["player_pos"] = {
-		"x": float(start.get("x", 1)) + 0.5,
-		"y": float(start.get("y", 14)) + 0.5
-	}
+	# Position is resolved after generate() using the live camp cell.
+	GameState.run["player_pos"] = {"x": 1.5, "y": 1.5}
 	GameState.autosave()
 	region_panel.visible = false
 	_intro_shown = false
 	_busy = false
 	_load_region()
+	var camp: Vector2i = _map.camp
+	_pos = Vector2(float(camp.x) + 0.5, float(camp.y) + 0.5)
+	_persist_pos(false)
+	GameState.autosave()
 	_refresh_hud()
 	_show_intro_once()
+	map_draw.queue_redraw()

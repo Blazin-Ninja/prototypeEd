@@ -77,8 +77,25 @@ func _test_map_walkable() -> int:
 	var region := DataRegistry.get_region("forest")
 	var map := MapGenerator.generate(region)
 	var camp: Vector2i = map.camp
+	var boss: Vector2i = map.boss
 	var tile: int = map.tiles[camp.y][camp.x]
-	return _ok("camp walkable", MapGenerator.is_walkable(tile)) + _ok("camp tile type", tile == MapGenerator.TILE_CAMP)
+	var failed := 0
+	failed += _ok("camp walkable", MapGenerator.is_walkable(tile))
+	failed += _ok("camp tile type", tile == MapGenerator.TILE_CAMP)
+	failed += _ok("map is large", int(map.width) >= 30 and int(map.height) >= 40)
+	failed += _ok("boss walkable", MapGenerator.is_walkable(int(map.tiles[boss.y][boss.x])))
+	var has_bridge := false
+	var has_hazard := false
+	for y in int(map.height):
+		for x in int(map.width):
+			var t: int = map.tiles[y][x]
+			if t == MapGenerator.TILE_BRIDGE:
+				has_bridge = true
+			if MapGenerator.is_hazard(t):
+				has_hazard = true
+	failed += _ok("has bridges", has_bridge)
+	failed += _ok("has hazards", has_hazard)
+	return failed
 
 func _test_progression_starters() -> int:
 	var account := SaveService.load_account()
