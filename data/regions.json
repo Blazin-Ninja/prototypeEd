@@ -30,7 +30,7 @@
       "grass_color": "#2d6a4f",
       "path_color": "#52796f",
       "unlocked_by_default": true,
-      "chest_count": 6
+      "obelisk_count": 4
     },
     {
       "id": "desert",
@@ -63,7 +63,7 @@
       "path_color": "#a47148",
       "unlocked_by_default": false,
       "stub": false,
-      "chest_count": 7
+      "obelisk_count": 4
     },
     {
       "id": "frozen_mountains",
@@ -96,7 +96,7 @@
       "path_color": "#caf0f8",
       "unlocked_by_default": false,
       "stub": false,
-      "chest_count": 6
+      "obelisk_count": 4
     },
     {
       "id": "alien_lab",
@@ -129,7 +129,7 @@
       "path_color": "#7b2cbf",
       "unlocked_by_default": false,
       "stub": false,
-      "chest_count": 7
+      "obelisk_count": 5
     },
     {
       "id": "meteor_hive",
@@ -162,7 +162,7 @@
       "path_color": "#5a189a",
       "unlocked_by_default": false,
       "stub": false,
-      "chest_count": 8
+      "obelisk_count": 5
     }
   ]
 }

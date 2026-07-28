@@ -51,8 +51,7 @@ func start_new_run(starter_id: String) -> void:
 		"seed": randi(),
 		"alive": true,
 		"steps": 0,
-		"gold": 0,
-		"opened_chests": [],
+		"cleared_obelisks": [],
 		"wild_rosters": {}
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
@@ -105,13 +104,15 @@ func unlock_region(region_id: String) -> void:
 		run["unlocked_regions"] = unlocked
 	autosave()
 
-func begin_battle(enemy: Dictionary, is_boss: bool = false, wild_roster_id: String = "") -> void:
+func begin_battle(enemy: Dictionary, is_boss: bool = false, wild_roster_id: String = "", obelisk_cell: Vector2i = Vector2i(-1, -1)) -> void:
 	pending_battle = {
 		"enemy": enemy,
 		"is_boss": is_boss,
-		"can_flee": not is_boss and not enemy.get("is_legendary", false),
+		"can_flee": not is_boss and not enemy.get("is_legendary", false) and not enemy.get("is_obelisk_guardian", false),
 		"wild_roster_id": wild_roster_id,
-		"region_id": str(run.get("region_id", ""))
+		"region_id": str(run.get("region_id", "")),
+		"obelisk_x": obelisk_cell.x,
+		"obelisk_y": obelisk_cell.y
 	}
 	EventBus.battle_started.emit(enemy)
 
@@ -121,7 +122,12 @@ func end_battle_victory(enemy: Dictionary) -> void:
 	if not bool(pending_battle.get("is_boss", false)):
 		var wid := str(pending_battle.get("wild_roster_id", enemy.get("instance_id", "")))
 		var rid := str(pending_battle.get("region_id", run.get("region_id", "")))
-		mark_wild_defeated(rid, wid)
+		if wid != "":
+			mark_wild_defeated(rid, wid)
+		var ox := int(pending_battle.get("obelisk_x", -1))
+		var oy := int(pending_battle.get("obelisk_y", -1))
+		if ox >= 0 and oy >= 0:
+			mark_obelisk_cleared(rid, Vector2i(ox, oy))
 	pending_absorb = {"enemy": enemy}
 	autosave()
 	EventBus.battle_ended.emit("win")
@@ -171,27 +177,18 @@ func end_run(won: bool) -> Dictionary:
 	EventBus.run_ended.emit(won, tokens)
 	return last_run_report
 
-func get_gold() -> int:
-	return int(run.get("gold", 0))
-
-func add_gold(amount: int) -> int:
-	var next := maxi(0, get_gold() + amount)
-	run["gold"] = next
-	autosave()
-	return next
-
-func chest_key(region_id: String, cell: Vector2i) -> String:
+func obelisk_key(region_id: String, cell: Vector2i) -> String:
 	return "%s:%d,%d" % [region_id, cell.x, cell.y]
 
-func is_chest_opened(region_id: String, cell: Vector2i) -> bool:
-	return run.get("opened_chests", []).has(chest_key(region_id, cell))
+func is_obelisk_cleared(region_id: String, cell: Vector2i) -> bool:
+	return run.get("cleared_obelisks", []).has(obelisk_key(region_id, cell))
 
-func mark_chest_opened(region_id: String, cell: Vector2i) -> void:
-	var opened: Array = run.get("opened_chests", [])
-	var key := chest_key(region_id, cell)
-	if not opened.has(key):
-		opened.append(key)
-		run["opened_chests"] = opened
+func mark_obelisk_cleared(region_id: String, cell: Vector2i) -> void:
+	var cleared: Array = run.get("cleared_obelisks", [])
+	var key := obelisk_key(region_id, cell)
+	if not cleared.has(key):
+		cleared.append(key)
+		run["cleared_obelisks"] = cleared
 		autosave()
 
 func get_wild_roster(region_id: String) -> Array:

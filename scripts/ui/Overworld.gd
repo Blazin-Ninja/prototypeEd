@@ -13,7 +13,6 @@ const TEST_MODE := true ## Infinite heal + easier testing aids.
 
 @onready var map_draw: Control = $MapArea/MapDraw
 @onready var hud: Label = $HUD/Top/Info
-@onready var gold_label: Label = $HUD/Top/GoldRow/GoldLabel
 @onready var hp_bar: ProgressBar = $HUD/Top/HPBar
 @onready var message: Label = $HUD/Message
 @onready var region_panel: PanelContainer = $RegionPanel
@@ -33,7 +32,7 @@ var _bob_t := 0.0
 var _ambient_t := 0.0
 var _wilds: Array = [] ## {creature, pos, vel, bob, roster_id}
 var _boss_marker: Dictionary = {} ## visible boss on map if undefeated
-var _chest_gold: Dictionary = {} ## "x,y" -> gold amount for unopened chests
+var _obelisk_templates: Dictionary = {} ## "x,y" -> template_id for active obelisks
 var _facing: String = "down"
 var _walk_phase: float = 0.0
 var _moving := false
@@ -83,11 +82,11 @@ func _test_heal() -> void:
 
 func _load_region() -> void:
 	var region := GameState.current_region()
-	# Stable floor layout within a run so chests stay put after battles.
+	# Stable floor layout within a run so obelisks stay put after battles.
 	var floor_seed := int(GameState.run.get("seed", 1)) ^ str(region.get("id", "")).hash()
 	seed(floor_seed)
 	_map = MapGenerator.generate(region)
-	_apply_opened_chests()
+	_apply_obelisk_state()
 	_pos = _read_saved_pos()
 	_pos.x = clampf(_pos.x, 1.2, float(_map.width) - 1.2)
 	_pos.y = clampf(_pos.y, 1.2, float(_map.height) - 1.2)
@@ -102,19 +101,19 @@ func _load_region() -> void:
 	_contact_grace = 1.25
 	map_draw.queue_redraw()
 
-func _apply_opened_chests() -> void:
-	_chest_gold.clear()
+func _apply_obelisk_state() -> void:
+	_obelisk_templates.clear()
 	var region_id := str(GameState.run.get("region_id", ""))
-	var chests: Array = _map.get("chests", [])
-	for c in chests:
-		var cell := Vector2i(int(c.get("x", 0)), int(c.get("y", 0)))
-		if GameState.is_chest_opened(region_id, cell):
-			if cell.y >= 0 and cell.y < int(_map.height) and cell.x >= 0 and cell.x < int(_map.width):
-				_map.tiles[cell.y][cell.x] = MapGenerator.TILE_PATH
+	var obelisks: Array = _map.get("obelisks", [])
+	for o in obelisks:
+		var cell := Vector2i(int(o.get("x", 0)), int(o.get("y", 0)))
+		if cell.y < 0 or cell.y >= int(_map.height) or cell.x < 0 or cell.x >= int(_map.width):
+			continue
+		if GameState.is_obelisk_cleared(region_id, cell):
+			_map.tiles[cell.y][cell.x] = MapGenerator.TILE_PATH
 		else:
-			_chest_gold["%d,%d" % [cell.x, cell.y]] = int(c.get("gold", 10))
-			if cell.y >= 0 and cell.y < int(_map.height) and cell.x >= 0 and cell.x < int(_map.width):
-				_map.tiles[cell.y][cell.x] = MapGenerator.TILE_CHEST
+			_obelisk_templates["%d,%d" % [cell.x, cell.y]] = str(o.get("template_id", ""))
+			_map.tiles[cell.y][cell.x] = MapGenerator.TILE_OBELISK
 
 func _read_saved_pos() -> Vector2:
 	var p: Dictionary = GameState.run.get("player_pos", {"x": 1.5, "y": 14.5})
@@ -240,7 +239,7 @@ func _show_intro_once() -> void:
 	message.text = "%s\n%s" % [region.get("name"), region.get("intro", "")]
 	await get_tree().create_timer(1.6).timeout
 	if is_inside_tree():
-		message.text = "Explore the dungeon. Open chests for gold. Bridges cross hazards. Camp heals — boss waits ahead."
+		message.text = "Explore the dungeon. Activate obelisks for special fights. Camp heals — boss waits ahead."
 
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
@@ -251,7 +250,6 @@ func _refresh_hud() -> void:
 		c.get("hp", 0),
 		c.get("max_hp", 1)
 	]
-	gold_label.text = "Gold  %d" % GameState.get_gold()
 	hp_bar.max_value = float(c.get("max_hp", 1))
 	hp_bar.value = float(c.get("hp", 0))
 
@@ -330,7 +328,7 @@ func _check_contacts() -> void:
 			_start_battle(creature, false, rid)
 			return
 
-func _start_battle(creature: Dictionary, is_boss: bool, roster_id: String = "") -> void:
+func _start_battle(creature: Dictionary, is_boss: bool, roster_id: String = "", obelisk_cell: Vector2i = Vector2i(-1, -1)) -> void:
 	if _busy:
 		return
 	_busy = true
@@ -339,7 +337,7 @@ func _start_battle(creature: Dictionary, is_boss: bool, roster_id: String = "") 
 	message.text = "%s blocks your path!" % creature.get("name", "Enemy")
 	GameState.autosave()
 	await get_tree().create_timer(0.25).timeout
-	GameState.begin_battle(creature, is_boss, roster_id)
+	GameState.begin_battle(creature, is_boss, roster_id, obelisk_cell)
 	get_tree().change_scene_to_file("res://scenes/battle/Battle.tscn")
 
 func _update_keyboard() -> void:
@@ -458,9 +456,9 @@ func _draw_map() -> void:
 					map_draw.draw_rect(rect, Color(0.22, 0.22, 0.24))
 					map_draw.draw_circle(rect.get_center() + Vector2(-4, 2), 10.0, Color(0.35, 0.34, 0.36))
 					map_draw.draw_circle(rect.get_center() + Vector2(6, -3), 7.0, Color(0.4, 0.38, 0.4))
-				MapGenerator.TILE_CHEST:
-					map_draw.draw_rect(rect, path.darkened(0.15))
-					_draw_chest(rect.get_center(), true)
+				MapGenerator.TILE_OBELISK:
+					map_draw.draw_rect(rect, path.darkened(0.2))
+					_draw_obelisk(rect.get_center())
 				_:
 					map_draw.draw_rect(rect, Color(0.1, 0.1, 0.12))
 
@@ -504,19 +502,21 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("cancel"):
 		_on_b()
 
-func _draw_chest(center: Vector2, closed: bool) -> void:
-	var body := Rect2(center - Vector2(14, 8), Vector2(28, 18))
-	if closed:
-		map_draw.draw_rect(body, Color(0.55, 0.32, 0.12))
-		map_draw.draw_rect(Rect2(center - Vector2(14, 14), Vector2(28, 8)), Color(0.7, 0.42, 0.16))
-		map_draw.draw_rect(Rect2(center - Vector2(3, 4), Vector2(6, 8)), Color(0.95, 0.78, 0.25))
-		map_draw.draw_circle(center + Vector2(0, -2), 2.5, Color(1.0, 0.9, 0.45))
-		# Soft gold sparkle
-		var spark := 0.55 + 0.45 * sin(_ambient_t * 2.0 + center.x * 0.01)
-		map_draw.draw_circle(center + Vector2(10, -12), 2.0, Color(1.0, 0.92, 0.4, spark))
-	else:
-		map_draw.draw_rect(body, Color(0.28, 0.18, 0.1))
-		map_draw.draw_rect(Rect2(center - Vector2(14, 16), Vector2(28, 7)), Color(0.4, 0.25, 0.12))
+func _draw_obelisk(center: Vector2) -> void:
+	var glow := 0.45 + 0.25 * sin(_ambient_t * 2.0 + center.x * 0.02)
+	map_draw.draw_circle(center + Vector2(0, 6), 16.0, Color(0.35, 0.55, 0.95, 0.2 + glow * 0.15))
+	# Stone pillar
+	map_draw.draw_rect(Rect2(center - Vector2(8, 22), Vector2(16, 36)), Color(0.42, 0.44, 0.5))
+	map_draw.draw_rect(Rect2(center - Vector2(10, 26), Vector2(20, 8)), Color(0.5, 0.52, 0.58))
+	# Pointed tip
+	map_draw.draw_colored_polygon(PackedVector2Array([
+		center + Vector2(0, -34),
+		center + Vector2(-10, -18),
+		center + Vector2(10, -18)
+	]), Color(0.55, 0.58, 0.66))
+	# Rune glow
+	map_draw.draw_rect(Rect2(center - Vector2(3, 8), Vector2(6, 14)), Color(0.45, 0.85, 1.0, 0.55 + glow * 0.35))
+	map_draw.draw_circle(center + Vector2(0, -10), 3.0, Color(0.7, 0.95, 1.0, 0.7 + glow * 0.3))
 
 func _on_enter_tile(tile: int) -> void:
 	match tile:
@@ -527,37 +527,38 @@ func _on_enter_tile(tile: int) -> void:
 			GameState.autosave()
 		MapGenerator.TILE_EXIT:
 			_open_region_travel()
-		MapGenerator.TILE_CHEST:
-			_try_open_chest(_tile_at(_pos))
+		MapGenerator.TILE_OBELISK:
+			_try_activate_obelisk(_tile_at(_pos))
 		_:
 			pass
 
-func _try_open_chest(cell: Vector2i) -> bool:
-	if _tile_type(cell) != MapGenerator.TILE_CHEST:
+func _try_activate_obelisk(cell: Vector2i) -> bool:
+	if _busy:
+		return false
+	if _tile_type(cell) != MapGenerator.TILE_OBELISK:
 		return false
 	var region_id := str(GameState.run.get("region_id", ""))
-	if GameState.is_chest_opened(region_id, cell):
+	if GameState.is_obelisk_cleared(region_id, cell):
 		return false
 	var key := "%d,%d" % [cell.x, cell.y]
-	var amount := int(_chest_gold.get(key, randi_range(10, 25)))
-	GameState.mark_chest_opened(region_id, cell)
-	GameState.add_gold(amount)
-	_chest_gold.erase(key)
-	_map.tiles[cell.y][cell.x] = MapGenerator.TILE_PATH
-	message.text = "Chest opened! +%d gold." % amount
-	_refresh_hud()
-	map_draw.queue_redraw()
+	var template_id := str(_obelisk_templates.get(key, ""))
+	var guardian := EncounterSystem.create_obelisk_guardian(region_id, template_id)
+	if guardian.is_empty():
+		message.text = "The obelisk stays silent."
+		return false
+	message.text = "The obelisk awakens — %s emerges!" % guardian.get("name", "Guardian")
+	_start_battle(guardian, false, "", cell)
 	return true
 
 func _on_a() -> void:
 	if _busy:
 		return
-	# Prefer opening a chest underfoot / adjacent.
+	# Prefer activating an obelisk underfoot / adjacent.
 	var here := _tile_at(_pos)
-	if _try_open_chest(here):
+	if _try_activate_obelisk(here):
 		return
-	for d in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-		if _try_open_chest(here + d):
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _try_activate_obelisk(here + d):
 			return
 	# Prefer interacting with nearest wild within reach.
 	var nearest_i := -1
@@ -580,10 +581,9 @@ func _on_a() -> void:
 	_on_enter_tile(_tile_type(_tile_at(_pos)))
 
 func _on_b() -> void:
-	message.text = "Companion: %s | Mutations: %d | Gold: %d | Wilds: %d" % [
+	message.text = "Companion: %s | Mutations: %d | Wilds: %d" % [
 		GameState.get_companion().get("name"),
 		GameState.get_companion().get("mutations", []).size(),
-		GameState.get_gold(),
 		_wilds.size()
 	]
 

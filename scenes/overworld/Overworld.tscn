@@ -22,7 +22,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 110.0
+offset_top = 90.0
 offset_bottom = -210.0
 
 [node name="MapDraw" type="Control" parent="MapArea"]
@@ -46,7 +46,7 @@ anchor_right = 1.0
 offset_left = 12.0
 offset_top = 20.0
 offset_right = -12.0
-offset_bottom = 112.0
+offset_bottom = 90.0
 mouse_filter = 2
 
 [node name="Info" type="Label" parent="HUD/Top"]
@@ -54,17 +54,6 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "Region"
 autowrap_mode = 3
-
-[node name="GoldRow" type="HBoxContainer" parent="HUD/Top"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="GoldLabel" type="Label" parent="HUD/Top/GoldRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(1, 0.86, 0.35, 1)
-theme_override_font_sizes/font_size = 18
-text = "Gold 0"
 
 [node name="HPBar" type="ProgressBar" parent="HUD/Top"]
 custom_minimum_size = Vector2(0, 18)

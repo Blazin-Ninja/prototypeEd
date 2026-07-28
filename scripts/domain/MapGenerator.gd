@@ -14,7 +14,7 @@ const TILE_WATER := 8
 const TILE_VOID := 9
 const TILE_BRIDGE := 10
 const TILE_ROCK := 11
-const TILE_CHEST := 12
+const TILE_OBELISK := 12
 
 static func generate(region: Dictionary) -> Dictionary:
 	var w := int(region.get("map_width", 36))
@@ -64,7 +64,7 @@ static func generate(region: Dictionary) -> Dictionary:
 	# Ensure camp/boss reachable: carve a guaranteed spine if needed.
 	_ensure_path(tiles, Vector2i(cx, cy), Vector2i(bx, by), w, h, hazard)
 
-	var chests: Array = _place_chests(tiles, region, Vector2i(cx, cy), Vector2i(bx, by), w, h)
+	var obelisks: Array = _place_obelisks(tiles, region, Vector2i(cx, cy), Vector2i(bx, by), w, h)
 
 	return {
 		"width": w,
@@ -75,7 +75,7 @@ static func generate(region: Dictionary) -> Dictionary:
 		"exit": Vector2i(ex, ey),
 		"rooms": rooms,
 		"hazard": hazard,
-		"chests": chests
+		"obelisks": obelisks
 	}
 
 static func is_walkable(tile: int) -> bool:
@@ -101,38 +101,39 @@ static func tile_name(tile: int) -> String:
 		TILE_VOID: return "void"
 		TILE_BRIDGE: return "bridge"
 		TILE_ROCK: return "rock"
-		TILE_CHEST: return "chest"
+		TILE_OBELISK: return "obelisk"
 		_: return "empty"
 
-static func _place_chests(tiles: Array, region: Dictionary, camp: Vector2i, boss: Vector2i, w: int, h: int) -> Array:
-	var want := int(region.get("chest_count", 6))
-	want = clampi(want, 3, 12)
-	var region_idx := int(region.get("index", 1))
-	var gold_min := 8 + region_idx * 4
-	var gold_max := 18 + region_idx * 10
+static func _place_obelisks(tiles: Array, region: Dictionary, camp: Vector2i, boss: Vector2i, w: int, h: int) -> Array:
+	var want := int(region.get("obelisk_count", 4))
+	want = clampi(want, 2, 8)
+	var wilds := DataRegistry.get_wilds_for_region(str(region.get("id", "")))
 	var candidates: Array = []
 	for y in range(1, h - 1):
 		for x in range(1, w - 1):
 			var t: int = int(tiles[y][x])
-			if t != TILE_PATH and t != TILE_GRASS and t != TILE_BRIDGE:
+			if t != TILE_PATH and t != TILE_GRASS:
 				continue
-			if absi(x - camp.x) + absi(y - camp.y) < 5:
+			if absi(x - camp.x) + absi(y - camp.y) < 6:
 				continue
-			if absi(x - boss.x) + absi(y - boss.y) < 4:
+			if absi(x - boss.x) + absi(y - boss.y) < 5:
 				continue
 			candidates.append(Vector2i(x, y))
 	candidates.shuffle()
-	var chests: Array = []
+	var obelisks: Array = []
 	var count := mini(want, candidates.size())
 	for i in count:
 		var cell: Vector2i = candidates[i]
-		tiles[cell.y][cell.x] = TILE_CHEST
-		chests.append({
+		tiles[cell.y][cell.x] = TILE_OBELISK
+		var template_id := "brush_rat"
+		if not wilds.is_empty():
+			template_id = str(wilds[randi() % wilds.size()].get("id", template_id))
+		obelisks.append({
 			"x": cell.x,
 			"y": cell.y,
-			"gold": randi_range(gold_min, gold_max)
+			"template_id": template_id
 		})
-	return chests
+	return obelisks
 
 static func _hazard_tile(kind: String) -> int:
 	match kind:

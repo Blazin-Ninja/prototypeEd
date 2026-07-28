@@ -12,7 +12,7 @@ func _ready() -> void:
 	failed += _test_ability_upgrade()
 	failed += _test_flee_and_initiative()
 	failed += _test_map_walkable()
-	failed += _test_gold_chests()
+	failed += _test_obelisks()
 	failed += _test_progression_starters()
 	if failed == 0:
 		print("ALL TESTS PASSED")
@@ -96,19 +96,18 @@ func _test_map_walkable() -> int:
 				has_hazard = true
 	failed += _ok("has bridges", has_bridge)
 	failed += _ok("has hazards", has_hazard)
-	failed += _ok("has chests", map.get("chests", []).size() >= 3)
+	failed += _ok("has obelisks", map.get("obelisks", []).size() >= 2)
 	return failed
 
-func _test_gold_chests() -> int:
+func _test_obelisks() -> int:
 	GameState.start_new_run("ember_pup")
-	var before := GameState.get_gold()
-	GameState.add_gold(25)
-	var f := 0
-	f += _ok("gold starts at 0", before == 0)
-	f += _ok("gold added", GameState.get_gold() == 25)
 	var cell := Vector2i(3, 4)
-	GameState.mark_chest_opened("forest", cell)
-	f += _ok("chest marked opened", GameState.is_chest_opened("forest", cell))
+	var f := 0
+	f += _ok("obelisk starts uncleared", not GameState.is_obelisk_cleared("forest", cell))
+	GameState.mark_obelisk_cleared("forest", cell)
+	f += _ok("obelisk marked cleared", GameState.is_obelisk_cleared("forest", cell))
+	var g := EncounterSystem.create_obelisk_guardian("forest")
+	f += _ok("obelisk guardian created", not g.is_empty() and bool(g.get("is_obelisk_guardian", false)))
 	# Wild roster persistence
 	GameState.set_wild_roster("forest", [{
 		"instance_id": "w1",

@@ -265,6 +265,8 @@ func _refresh() -> void:
 	var tags: Array = []
 	if is_boss:
 		tags.append("BOSS")
+	if enemy.get("is_obelisk_guardian", false):
+		tags.append("OBELISK")
 	if enemy.get("is_alpha", false):
 		tags.append("ALPHA")
 	if enemy.get("is_legendary", false):
