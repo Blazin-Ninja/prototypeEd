@@ -14,91 +14,148 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.09, 0.1, 0.12, 1)
+color = Color(0.05, 0.07, 0.1, 1)
+
+[node name="BGAccent" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 420.0
+color = Color(0.12, 0.08, 0.16, 0.55)
 
 [node name="Safe" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 36
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 16
 
 [node name="VBox" type="VBoxContainer" parent="Safe"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Battlers" type="HBoxContainer" parent="Safe/VBox"]
-custom_minimum_size = Vector2(0, 260)
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="PlayerCol" type="VBoxContainer" parent="Safe/VBox/Battlers"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PName" type="Label" parent="Safe/VBox/Battlers/PlayerCol"]
-layout_mode = 2
-text = "Player"
-horizontal_alignment = 1
-
-[node name="PHP" type="ProgressBar" parent="Safe/VBox/Battlers/PlayerCol"]
-custom_minimum_size = Vector2(0, 16)
-layout_mode = 2
-show_percentage = false
-
-[node name="PView" type="Control" parent="Safe/VBox/Battlers/PlayerCol"]
-custom_minimum_size = Vector2(0, 180)
+[node name="EnemyPanel" type="PanelContainer" parent="Safe/VBox"]
+custom_minimum_size = Vector2(0, 320)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="EnemyCol" type="VBoxContainer" parent="Safe/VBox/Battlers"]
+[node name="EnemyMargin" type="MarginContainer" parent="Safe/VBox/EnemyPanel"]
 layout_mode = 2
-size_flags_horizontal = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
 
-[node name="EName" type="Label" parent="Safe/VBox/Battlers/EnemyCol"]
+[node name="EnemyCol" type="VBoxContainer" parent="Safe/VBox/EnemyPanel/EnemyMargin"]
 layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="EName" type="Label" parent="Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
 text = "Enemy"
 horizontal_alignment = 1
 
-[node name="EHP" type="ProgressBar" parent="Safe/VBox/Battlers/EnemyCol"]
-custom_minimum_size = Vector2(0, 16)
+[node name="EMeta" type="Label" parent="Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 14
+text = ""
+horizontal_alignment = 1
+
+[node name="EHP" type="ProgressBar" parent="Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+max_value = 100.0
+show_percentage = false
+
+[node name="EHPText" type="Label" parent="Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "HP"
+horizontal_alignment = 1
+
+[node name="EView" type="Control" parent="Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LogPanel" type="PanelContainer" parent="Safe/VBox"]
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+
+[node name="LogMargin" type="MarginContainer" parent="Safe/VBox/LogPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="Log" type="RichTextLabel" parent="Safe/VBox/LogPanel/LogMargin"]
+layout_mode = 2
+bbcode_enabled = true
+scroll_following = true
+
+[node name="PlayerPanel" type="PanelContainer" parent="Safe/VBox"]
+custom_minimum_size = Vector2(0, 250)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerMargin" type="MarginContainer" parent="Safe/VBox/PlayerPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="PlayerCol" type="VBoxContainer" parent="Safe/VBox/PlayerPanel/PlayerMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PName" type="Label" parent="Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Player"
+horizontal_alignment = 1
+
+[node name="PHP" type="ProgressBar" parent="Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol"]
+custom_minimum_size = Vector2(0, 22)
 layout_mode = 2
 show_percentage = false
 
-[node name="EView" type="Control" parent="Safe/VBox/Battlers/EnemyCol"]
-custom_minimum_size = Vector2(0, 180)
+[node name="PHPText" type="Label" parent="Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol"]
 layout_mode = 2
-size_flags_vertical = 3
+theme_override_font_sizes/font_size = 13
+text = "HP"
+horizontal_alignment = 1
 
-[node name="Log" type="RichTextLabel" parent="Safe/VBox"]
-custom_minimum_size = Vector2(0, 180)
+[node name="PView" type="Control" parent="Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol"]
+custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 size_flags_vertical = 3
-bbcode_enabled = true
-scroll_following = true
 
 [node name="Actions" type="HBoxContainer" parent="Safe/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="FightBtn" type="Button" parent="Safe/VBox/Actions"]
-custom_minimum_size = Vector2(0, 56)
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 22
-text = "Fight"
+theme_override_font_sizes/font_size = 24
+text = "FIGHT"
 
 [node name="FleeBtn" type="Button" parent="Safe/VBox/Actions"]
-custom_minimum_size = Vector2(0, 56)
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 22
-text = "Flee"
+theme_override_font_sizes/font_size = 24
+text = "FLEE"
 
 [node name="AbilityList" type="VBoxContainer" parent="Safe/VBox"]
 visible = false
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 8

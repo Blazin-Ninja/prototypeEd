@@ -2,7 +2,10 @@ extends RefCounted
 class_name PlaceholderArt
 ## Draws simple colored shapes for creatures / mutations.
 
-static func draw_creature(canvas: CanvasItem, creature: Dictionary, center: Vector2, radius: float) -> void:
+static func draw_creature(canvas: CanvasItem, creature: Dictionary, center: Vector2, radius: float, anim_t: float = 0.0) -> void:
+	# Prefer custom boss art when available.
+	if bool(creature.get("is_boss", false)) and BossSprites.draw(canvas, creature, center, radius, anim_t):
+		return
 	var color := Color.html(str(creature.get("color", "#888888")))
 	var shape := str(creature.get("shape", "quad"))
 	match shape:
