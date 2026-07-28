@@ -21,10 +21,11 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_bottom = -140.0
 theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 40
+theme_override_constants/margin_top = 36
 theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 24
+theme_override_constants/margin_bottom = 12
 
 [node name="VBox" type="VBoxContainer" parent="Safe"]
 layout_mode = 2
@@ -32,13 +33,14 @@ theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="Safe/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 28
 text = "Absorb?"
 horizontal_alignment = 1
 
 [node name="EnemyView" type="Control" parent="Safe/VBox"]
-custom_minimum_size = Vector2(0, 160)
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
+size_flags_vertical = 3
 
 [node name="Chances" type="Label" parent="Safe/VBox"]
 layout_mode = 2
@@ -47,59 +49,79 @@ text = "Odds"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="Buttons" type="HBoxContainer" parent="Safe/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="AbsorbBtn" type="Button" parent="Safe/VBox/Buttons"]
-custom_minimum_size = Vector2(0, 56)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 22
-text = "ABSORB"
-
-[node name="LeaveBtn" type="Button" parent="Safe/VBox/Buttons"]
-custom_minimum_size = Vector2(0, 56)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 22
-text = "LEAVE"
-
 [node name="Results" type="VBoxContainer" parent="Safe/VBox"]
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ChoicePanel" type="PanelContainer" parent="Safe"]
+[node name="BottomBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -140.0
+grow_vertical = 0
+
+[node name="BottomMargin" type="MarginContainer" parent="BottomBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 20
+
+[node name="Buttons" type="HBoxContainer" parent="BottomBar/BottomMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="AbsorbBtn" type="Button" parent="BottomBar/BottomMargin/Buttons"]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 28
+text = "ABSORB"
+
+[node name="LeaveBtn" type="Button" parent="BottomBar/BottomMargin/Buttons"]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 28
+text = "LEAVE"
+
+[node name="ChoicePanel" type="PanelContainer" parent="."]
 visible = false
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -280.0
-offset_top = -260.0
-offset_right = 280.0
-offset_bottom = 260.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 48.0
+offset_right = -16.0
+offset_bottom = -24.0
 
-[node name="Margin" type="MarginContainer" parent="Safe/ChoicePanel"]
+[node name="Margin" type="MarginContainer" parent="ChoicePanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="VBox" type="VBoxContainer" parent="Safe/ChoicePanel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="ChoicePanel/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="Safe/ChoicePanel/Margin/VBox"]
+[node name="Title" type="Label" parent="ChoicePanel/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "Choose"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="List" type="VBoxContainer" parent="Safe/ChoicePanel/Margin/VBox"]
+[node name="Scroll" type="ScrollContainer" parent="ChoicePanel/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="List" type="VBoxContainer" parent="ChoicePanel/Margin/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8

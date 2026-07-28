@@ -7,9 +7,11 @@ signal choice_made(choice: Dictionary)
 @onready var chances: Label = $Safe/VBox/Chances
 @onready var enemy_view: Control = $Safe/VBox/EnemyView
 @onready var results_box: VBoxContainer = $Safe/VBox/Results
-@onready var choice_panel: PanelContainer = $Safe/ChoicePanel
-@onready var choice_list: VBoxContainer = $Safe/ChoicePanel/Margin/VBox/List
-@onready var choice_title: Label = $Safe/ChoicePanel/Margin/VBox/Title
+@onready var choice_panel: PanelContainer = $ChoicePanel
+@onready var choice_list: VBoxContainer = $ChoicePanel/Margin/VBox/Scroll/List
+@onready var choice_title: Label = $ChoicePanel/Margin/VBox/Title
+@onready var absorb_btn: Button = $BottomBar/BottomMargin/Buttons/AbsorbBtn
+@onready var leave_btn: Button = $BottomBar/BottomMargin/Buttons/LeaveBtn
 
 var enemy: Dictionary = {}
 var companion: Dictionary = {}
@@ -31,16 +33,16 @@ func _ready() -> void:
 	]
 	enemy_view.draw.connect(func(): PlaceholderArt.draw_creature(enemy_view, enemy, enemy_view.size * 0.5, minf(enemy_view.size.x, enemy_view.size.y) * 0.4))
 	enemy_view.queue_redraw()
-	$Safe/VBox/Buttons/AbsorbBtn.pressed.connect(_absorb)
-	$Safe/VBox/Buttons/LeaveBtn.pressed.connect(_leave)
+	absorb_btn.pressed.connect(_absorb)
+	leave_btn.pressed.connect(_leave)
 
 func _leave() -> void:
 	GameState.skip_absorb()
 	_return_overworld()
 
 func _absorb() -> void:
-	$Safe/VBox/Buttons/AbsorbBtn.disabled = true
-	$Safe/VBox/Buttons/LeaveBtn.disabled = true
+	absorb_btn.disabled = true
+	leave_btn.disabled = true
 	pending_results = AbsorptionSystem.roll_all(companion, enemy, GameState.account)
 	GameState.run["absorptions"] = int(GameState.run.get("absorptions", 0)) + 1
 	if pending_results.is_empty():
