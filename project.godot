@@ -7,10 +7,10 @@ config_version=5
 
 config/name="Chimera Bond"
 config/description="Bond with one companion. Absorb DNA. Evolve or die."
-config/version="0.1.1"
+config/version="0.1.2"
 run/main_scene="res://scenes/boot/Boot.tscn"
 config/features=PackedStringArray("4.3", "Mobile")
-config/icon="res://icon.svg"
+config/icon="res://assets/icons/icon_512.png"
 
 [autoload]
 
