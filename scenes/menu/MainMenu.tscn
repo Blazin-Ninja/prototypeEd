@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://menu001"]
+[gd_scene load_steps=3 format=3 uid="uid://menu001"]
 
 [ext_resource type="Script" path="res://scripts/ui/MainMenu.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/ui/boot_bg.png" id="2"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -16,7 +17,17 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.07, 0.11, 0.1, 1)
+color = Color(0.06, 0.11, 0.09, 1)
+
+[node name="BGArt" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0.55)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+texture = ExtResource("2")
+expand_mode = 1
+stretch_mode = 6
 
 [node name="Safe" type="MarginContainer" parent="."]
 layout_mode = 1

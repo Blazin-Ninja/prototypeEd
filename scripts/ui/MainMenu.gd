@@ -1,5 +1,7 @@
 extends Control
 
+const AppTheme = preload("res://scripts/ui/AppTheme.gd")
+
 @onready var tokens_label: Label = $Safe/VBox/Tokens
 @onready var continue_btn: Button = $Safe/VBox/ContinueBtn
 @onready var new_btn: Button = $Safe/VBox/NewBtn
@@ -9,6 +11,15 @@ extends Control
 @onready var story: Label = $Safe/VBox/Story
 
 func _ready() -> void:
+	AppTheme.apply_to(self)
+	if has_node("Safe/VBox/Title"):
+		AppTheme.style_title($Safe/VBox/Title, 42)
+	AppTheme.style_muted(story, 16)
+	AppTheme.style_muted(tokens_label, 18)
+	if has_node("BG") and $BG is ColorRect:
+		($BG as ColorRect).color = AppTheme.COL_BG
+	if has_node("BGArt") and ResourceLoader.exists("res://assets/ui/boot_bg.png"):
+		$BGArt.texture = load("res://assets/ui/boot_bg.png")
 	GameState.refresh_account()
 	_refresh()
 	shop_panel.visible = false

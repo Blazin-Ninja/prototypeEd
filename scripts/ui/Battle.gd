@@ -2,6 +2,7 @@ extends Control
 ## Turn-based battle UI — monsters only, with simple attack FX.
 
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
+const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 
 @onready var log_box: RichTextLabel = $Safe/VBox/LogPanel/LogMargin/Log
 @onready var player_hp: ProgressBar = $Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol/PHP
@@ -52,6 +53,7 @@ func _ready() -> void:
 	if pending.is_empty():
 		get_tree().change_scene_to_file("res://scenes/overworld/Overworld.tscn")
 		return
+	AppTheme.apply_to(self)
 	BossSprites.ensure_loaded()
 	player = GameState.get_companion().duplicate(true)
 	enemy = pending.get("enemy", {}).duplicate(true)

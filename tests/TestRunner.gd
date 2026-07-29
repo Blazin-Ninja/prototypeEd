@@ -10,6 +10,7 @@ const AbsorptionSystem = preload("res://scripts/domain/AbsorptionSystem.gd")
 const AbilitySystem = preload("res://scripts/domain/AbilitySystem.gd")
 const MapGenerator = preload("res://scripts/domain/MapGenerator.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
+const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -25,6 +26,7 @@ func _ready() -> void:
 	failed += _test_bond_shards()
 	failed += _test_level_up()
 	failed += _test_wild_respawn()
+	failed += _test_graphics_assets()
 	failed += _test_progression_starters()
 	if failed == 0:
 		print("ALL TESTS PASSED")
@@ -250,6 +252,19 @@ func _test_wild_respawn() -> int:
 	GameState.migrate_wild_respawns("forest")
 	roster = GameState.get_wild_roster("forest")
 	f += _ok("old dead wilds get respawn timer", roster[0].has("respawn_at"))
+	return f
+
+func _test_graphics_assets() -> int:
+	var f := 0
+	f += _ok("display font present", ResourceLoader.exists("res://assets/fonts/Fredoka-Variable.ttf"))
+	f += _ok("body font present", ResourceLoader.exists("res://assets/fonts/Karla-Regular.ttf"))
+	f += _ok("grass tile present", ResourceLoader.exists("res://assets/tiles/grass.png"))
+	f += _ok("water anim present", ResourceLoader.exists("res://assets/tiles/water_0.png"))
+	f += _ok("ui button chrome present", ResourceLoader.exists("res://assets/ui/btn_normal.png"))
+	f += _ok("boot splash art present", ResourceLoader.exists("res://assets/ui/boot_bg.png"))
+	f += _ok("joystick art present", ResourceLoader.exists("res://assets/ui/stick_base.png"))
+	var theme = AppTheme.get_theme()
+	f += _ok("app theme builds", theme != null)
 	return f
 
 func _test_progression_starters() -> int:

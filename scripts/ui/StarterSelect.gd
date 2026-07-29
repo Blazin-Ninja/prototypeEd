@@ -1,5 +1,7 @@
 extends Control
 
+const AppTheme = preload("res://scripts/ui/AppTheme.gd")
+
 @onready var list: VBoxContainer = $Safe/VBox/Scroll/List
 @onready var detail: Label = $Safe/VBox/Detail
 @onready var preview: Control = $Safe/VBox/Preview
@@ -10,6 +12,7 @@ var _preview_creature: Dictionary = {}
 var _preview_t := 0.0
 
 func _ready() -> void:
+	AppTheme.apply_to(self)
 	PlayerAvatar.ensure_loaded()
 	confirm_btn.disabled = true
 	confirm_btn.pressed.connect(_confirm)

@@ -10,10 +10,12 @@ const SAVE_INTERVAL := 1.25
 const WILD_SPEED := 1.05
 const DEFAULT_WILD_COUNT := 5
 const TEST_MODE := true ## Infinite heal + easier testing aids.
+const AppTheme = preload("res://scripts/ui/AppTheme.gd")
+const TileArt = preload("res://scripts/util/TileArt.gd")
 
 @onready var map_draw: Control = $MapArea/MapDraw
-@onready var hud: Label = $HUD/Top/Info
-@onready var hp_bar: ProgressBar = $HUD/Top/HPBar
+@onready var hud: Label = $HUD/Top/Strip/Info
+@onready var hp_bar: ProgressBar = $HUD/Top/Strip/HPBar
 @onready var message: Label = $HUD/Message
 @onready var region_panel: PanelContainer = $RegionPanel
 @onready var region_list: VBoxContainer = $RegionPanel/Margin/VBox/List
@@ -42,6 +44,8 @@ func _ready() -> void:
 	if GameState.run.is_empty():
 		get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn")
 		return
+	AppTheme.apply_to(self)
+	AppTheme.style_muted(message, 15)
 	PlayerAvatar.ensure_loaded()
 	CreatureSprites.ensure_loaded()
 	BossSprites.ensure_loaded()
@@ -307,7 +311,7 @@ func _show_intro_once() -> void:
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
 	var region := GameState.current_region()
-	hud.text = "%s  |  %s Lv%d  HP %d/%d  |  Shards %d/%d" % [
+	hud.text = "%s   ·   %s Lv%d   ·   HP %d/%d   ·   Shards %d/%d" % [
 		region.get("name", "?"),
 		c.get("name", "?"),
 		int(c.get("level", 1)),
@@ -318,6 +322,7 @@ func _refresh_hud() -> void:
 	]
 	hp_bar.max_value = float(c.get("max_hp", 1))
 	hp_bar.value = float(c.get("hp", 0))
+	AppTheme.style_title(hud, 15)
 
 func _process(delta: float) -> void:
 	if _map.is_empty() or _busy or region_panel.visible:
@@ -473,64 +478,15 @@ func _draw_map() -> void:
 	var min_y := clampi(int((-origin.y) / TILE) - pad, 0, map_h - 1)
 	var max_x := clampi(int((map_draw.size.x - origin.x) / TILE) + pad, 0, map_w - 1)
 	var max_y := clampi(int((map_draw.size.y - origin.y) / TILE) + pad, 0, map_h - 1)
-	var pulse := 0.5 + 0.5 * sin(_ambient_t * 1.1)
 	for y in range(min_y, max_y + 1):
 		for x in range(min_x, max_x + 1):
 			var t: int = tiles[y][x]
-			var rect := Rect2(origin + Vector2(x, y) * TILE, Vector2(TILE - 1, TILE - 1))
-			match t:
-				MapGenerator.TILE_GRASS:
-					map_draw.draw_rect(rect, grass)
-				MapGenerator.TILE_PATH:
-					map_draw.draw_rect(rect, path)
-				MapGenerator.TILE_WALL:
-					map_draw.draw_rect(rect, Color(0.05, 0.07, 0.06))
-				MapGenerator.TILE_CAMP:
-					map_draw.draw_rect(rect, Color(0.85, 0.7, 0.35))
-				MapGenerator.TILE_BOSS:
-					map_draw.draw_rect(rect, Color(0.65, 0.15, 0.2))
-				MapGenerator.TILE_EXIT:
-					map_draw.draw_rect(rect, Color(0.3, 0.55, 0.85))
-				MapGenerator.TILE_LAVA:
-					# Stable base color + tiny slow shimmer (not walk-synced).
-					var lava := Color(0.78, 0.24, 0.06)
-					map_draw.draw_rect(rect, lava)
-					var shimmer := 0.25 + 0.2 * sin(_ambient_t * 1.4 + float(x) * 0.35 + float(y) * 0.2)
-					map_draw.draw_circle(rect.get_center(), 5.0, Color(1.0, 0.65, 0.15, shimmer))
-				MapGenerator.TILE_WATER:
-					# Static water fill — no per-frame color flash while walking.
-					var water := Color(0.12, 0.38, 0.55)
-					map_draw.draw_rect(rect, water)
-					var wave_y := 16.0 + sin(_ambient_t * 1.2 + float(x) * 0.4) * 2.0
-					map_draw.draw_line(
-						rect.position + Vector2(6, wave_y),
-						rect.position + Vector2(40, wave_y - 2.0),
-						Color(0.55, 0.8, 0.95, 0.28),
-						2.0
-					)
-				MapGenerator.TILE_VOID:
-					map_draw.draw_rect(rect, Color(0.08, 0.02, 0.14))
-					map_draw.draw_circle(rect.get_center(), 9.0, Color(0.35, 0.05, 0.45, 0.4 + 0.15 * pulse))
-				MapGenerator.TILE_BRIDGE:
-					map_draw.draw_rect(rect, Color(0.35, 0.22, 0.12))
-					# Plank lines
-					var p0 := rect.position
-					map_draw.draw_line(p0 + Vector2(4, 10), p0 + Vector2(40, 10), Color(0.55, 0.38, 0.2), 2.0)
-					map_draw.draw_line(p0 + Vector2(4, 22), p0 + Vector2(40, 22), Color(0.55, 0.38, 0.2), 2.0)
-					map_draw.draw_line(p0 + Vector2(4, 34), p0 + Vector2(40, 34), Color(0.55, 0.38, 0.2), 2.0)
-					map_draw.draw_rect(Rect2(p0 + Vector2(1, 1), Vector2(TILE - 3, TILE - 3)), Color(0.2, 0.12, 0.06), false, 2.0)
-				MapGenerator.TILE_ROCK:
-					map_draw.draw_rect(rect, Color(0.22, 0.22, 0.24))
-					map_draw.draw_circle(rect.get_center() + Vector2(-4, 2), 10.0, Color(0.35, 0.34, 0.36))
-					map_draw.draw_circle(rect.get_center() + Vector2(6, -3), 7.0, Color(0.4, 0.38, 0.4))
-				MapGenerator.TILE_OBELISK:
-					map_draw.draw_rect(rect, path.darkened(0.2))
-					_draw_obelisk(rect.get_center())
-				_:
-					map_draw.draw_rect(rect, Color(0.1, 0.1, 0.12))
+			var rect := Rect2(origin + Vector2(x, y) * TILE, Vector2(TILE, TILE))
+			TileArt.draw_tile(map_draw, t, rect, grass, path, _ambient_t)
 
 	# Visible wild creatures (also culled)
 	var view := Rect2(Vector2.ZERO, map_draw.size).grow(64.0)
+	var name_font := AppTheme.body_font()
 	for wild in _wilds:
 		var wp: Vector2 = wild["pos"]
 		var bob := sin(float(wild.get("bob", 0.0))) * 2.0
@@ -540,7 +496,7 @@ func _draw_map() -> void:
 		map_draw.draw_circle(cpos + Vector2(0, 9), 8.0, Color(0, 0, 0, 0.22))
 		PlaceholderArt.draw_creature(map_draw, wild["creature"], cpos, 12.0)
 		var n := str(wild["creature"].get("name", "?"))
-		map_draw.draw_string(ThemeDB.fallback_font, cpos + Vector2(-28, -18), n, HORIZONTAL_ALIGNMENT_LEFT, 56, 11, Color(1, 1, 1, 0.85))
+		map_draw.draw_string(name_font, cpos + Vector2(-28, -18), n, HORIZONTAL_ALIGNMENT_LEFT, 56, 12, Color(0.92, 0.98, 0.94, 0.9))
 
 	# Boss marker
 	if not _boss_marker.is_empty():
@@ -549,7 +505,7 @@ func _draw_map() -> void:
 		if view.has_point(bpos):
 			map_draw.draw_circle(bpos, 18.0, Color(0.7, 0.1, 0.15, 0.25))
 			PlaceholderArt.draw_creature(map_draw, _boss_marker["creature"], bpos, 16.0)
-			map_draw.draw_string(ThemeDB.fallback_font, bpos + Vector2(-40, -26), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 80, 12, Color(1, 0.75, 0.75, 0.95))
+			map_draw.draw_string(name_font, bpos + Vector2(-40, -26), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 80, 13, Color(1, 0.78, 0.78, 0.95))
 
 	# Player: human trainer with companion on shoulder
 	var center := origin + _pos * TILE

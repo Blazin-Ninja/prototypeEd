@@ -3,6 +3,8 @@ extends Control
 
 signal choice_made(choice: Dictionary)
 
+const AppTheme = preload("res://scripts/ui/AppTheme.gd")
+
 @onready var title: Label = $Safe/VBox/Title
 @onready var chances: Label = $Safe/VBox/Chances
 @onready var enemy_view: Control = $Safe/VBox/EnemyView
@@ -19,6 +21,8 @@ var pending_results: Array = []
 var index := 0
 
 func _ready() -> void:
+	AppTheme.apply_to(self)
+	AppTheme.style_title(title, 28)
 	choice_panel.visible = false
 	var pending: Dictionary = GameState.pending_absorb
 	if pending.is_empty():
