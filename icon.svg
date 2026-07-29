@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Chimera Bond">
+  <defs>
+    <radialGradient id="bg" cx="48%" cy="42%" r="68%">
+      <stop offset="0%" stop-color="#2f615c"/>
+      <stop offset="55%" stop-color="#173532"/>
+      <stop offset="100%" stop-color="#080e10"/>
+    </radialGradient>
+    <radialGradient id="ember" cx="58%" cy="78%" r="45%">
+      <stop offset="0%" stop-color="#ff8a32" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ff8a32" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pupGlow" cx="50%" cy="55%" r="40%">
+      <stop offset="0%" stop-color="#ff7a28" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ff7a28" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tail" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff9a3a"/>
+      <stop offset="100%" stop-color="#ffe07a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App plate -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#ember)"/>
+
+  <!-- Meteor scar -->
+  <g opacity="0.85">
+    <circle cx="90" cy="95" r="3.5" fill="#ffe2a8"/>
+    <circle cx="118" cy="112" r="2.8" fill="#ffd090" opacity="0.85"/>
+    <circle cx="145" cy="128" r="2.2" fill="#ffc070" opacity="0.7"/>
+    <circle cx="170" cy="142" r="1.6" fill="#ffb060" opacity="0.5"/>
+    <circle cx="188" cy="152" r="7" fill="#fff4d8"/>
+  </g>
+
+  <!-- Bond ring: ember + teal splice -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M256 118 A138 138 0 0 1 378 300" stroke="#ff9140" stroke-width="14"/>
+    <path d="M378 300 A138 138 0 0 1 150 360" stroke="#3fbaa8" stroke-width="14"/>
+    <path d="M150 360 A138 138 0 0 1 256 118" stroke="#ff9140" stroke-width="14" opacity="0.85"/>
+    <circle cx="256" cy="256" r="128" stroke="#ffe29a" stroke-width="3" opacity="0.35"/>
+  </g>
+  <!-- Bond nodes -->
+  <g>
+    <rect x="360" y="286" width="18" height="18" rx="2" transform="rotate(45 369 295)" fill="#ffc878"/>
+    <rect x="142" y="346" width="18" height="18" rx="2" transform="rotate(45 151 355)" fill="#7fe0d0"/>
+    <rect x="246" y="108" width="16" height="16" rx="2" transform="rotate(45 254 116)" fill="#ffb25a"/>
+    <rect x="246" y="382" width="16" height="16" rx="2" transform="rotate(45 254 390)" fill="#6fd4c4"/>
+  </g>
+
+  <!-- Soft ground shadow -->
+  <ellipse cx="256" cy="372" rx="92" ry="22" fill="#000" opacity="0.35"/>
+  <circle cx="256" cy="270" r="120" fill="url(#pupGlow)"/>
+
+  <!-- Ember Pup (simplified vector mascot) -->
+  <g transform="translate(256 268)">
+    <!-- body -->
+    <ellipse cx="0" cy="18" rx="78" ry="70" fill="#e86a18"/>
+    <ellipse cx="0" cy="8" rx="62" ry="54" fill="#f4842a"/>
+    <!-- belly -->
+    <ellipse cx="0" cy="28" rx="34" ry="30" fill="#f3b36a"/>
+    <!-- ears -->
+    <path d="M-52 -48 L-68 -108 L-20 -62 Z" fill="#e86a18"/>
+    <path d="M-48 -58 L-58 -92 L-28 -66 Z" fill="#f3b36a"/>
+    <path d="M52 -48 L68 -108 L20 -62 Z" fill="#e86a18"/>
+    <path d="M48 -58 L58 -92 L28 -66 Z" fill="#f3b36a"/>
+    <!-- eyes -->
+    <circle cx="-22" cy="-8" r="16" fill="#fff8ef"/>
+    <circle cx="22" cy="-8" r="16" fill="#fff8ef"/>
+    <circle cx="-18" cy="-5" r="7" fill="#1a1a1a"/>
+    <circle cx="26" cy="-5" r="7" fill="#1a1a1a"/>
+    <!-- snout -->
+    <ellipse cx="0" cy="10" rx="16" ry="12" fill="#f3b36a"/>
+    <ellipse cx="0" cy="12" rx="4" ry="3" fill="#c45c26"/>
+    <!-- feet -->
+    <ellipse cx="-28" cy="78" rx="18" ry="12" fill="#b34a12"/>
+    <ellipse cx="28" cy="78" rx="18" ry="12" fill="#b34a12"/>
+    <!-- zigzag tail -->
+    <path d="M70 10 L98 -6 L88 18 L118 8 L102 34 L130 28 L108 52 L84 40 L92 22 Z" fill="url(#tail)"/>
+  </g>
+
+  <!-- Sparks -->
+  <circle cx="118" cy="168" r="4" fill="#ffd28a"/>
+  <circle cx="392" cy="156" r="3.5" fill="#7fe0d0"/>
+  <circle cx="388" cy="360" r="4" fill="#ffb25a"/>
+  <circle cx="130" cy="350" r="3" fill="#8fe8d8"/>
+</svg>
