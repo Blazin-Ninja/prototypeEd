@@ -33,7 +33,7 @@ static func should_trigger_encounter(region: Dictionary, on_grass: bool) -> bool
 	return randf() < float(region.get("grass_encounter_chance", 0.15))
 
 static func create_obelisk_guardian(region_id: String, template_id: String = "") -> Dictionary:
-	## Special fight: alpha-tier regional guardian bound to an obelisk.
+	## Optional side fight: one mild guardian tier (~1.22×), not alpha double-dip.
 	var tid := template_id
 	if tid == "":
 		var wilds := DataRegistry.get_wilds_for_region(region_id)
@@ -43,18 +43,18 @@ static func create_obelisk_guardian(region_id: String, template_id: String = "")
 	if tid == "":
 		return {}
 	var guardian := CreatureFactory.create_from_template(tid, {
-		"is_alpha": true,
+		"is_alpha": false,
 		"is_legendary": false
 	})
-	# Buff beyond a normal alpha for a distinct challenge.
 	var stats: Dictionary = guardian.get("stats", {})
 	for key in ["hp", "attack", "defense", "special_attack", "special_defense", "speed"]:
-		stats[key] = int(round(float(stats.get(key, 10)) * 1.35))
+		stats[key] = int(round(float(stats.get(key, 10)) * 1.22))
 	guardian["stats"] = stats
 	guardian["max_hp"] = int(stats.get("hp", guardian.get("max_hp", 1)))
 	guardian["hp"] = int(guardian["max_hp"])
 	guardian["name"] = "%s Obelisk" % str(guardian.get("name", "Guardian"))
 	guardian["is_obelisk_guardian"] = true
+	guardian["is_alpha"] = false
 	return guardian
 
 static func create_boss(region: Dictionary) -> Dictionary:

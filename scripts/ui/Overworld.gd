@@ -144,6 +144,7 @@ func _spawn_wilds() -> void:
 	var region_id := str(region.get("id", ""))
 	if region.get("stub", false):
 		return
+	GameState.migrate_wild_respawns(region_id)
 	var roster: Array = GameState.get_wild_roster(region_id)
 	if roster.is_empty():
 		roster = _build_wild_roster(region)
@@ -151,18 +152,80 @@ func _spawn_wilds() -> void:
 	for entry in roster:
 		if not bool(entry.get("alive", true)):
 			continue
-		var creature: Dictionary = entry.get("creature", {})
-		if creature.is_empty():
+		_add_live_wild(entry)
+
+func _add_live_wild(entry: Dictionary) -> void:
+	var creature: Dictionary = entry.get("creature", {})
+	if creature.is_empty():
+		return
+	var rid := str(entry.get("instance_id", creature.get("instance_id", "")))
+	for w in _wilds:
+		if str(w.get("roster_id", "")) == rid:
+			return
+	var ang := randf() * TAU
+	_wilds.append({
+		"creature": creature,
+		"pos": Vector2(float(entry.get("x", 1.5)), float(entry.get("y", 1.5))),
+		"vel": Vector2(cos(ang), sin(ang)) * WILD_SPEED,
+		"bob": randf() * TAU,
+		"retarget": randf_range(1.2, 2.8),
+		"roster_id": rid
+	})
+
+func _pick_respawn_cell() -> Vector2i:
+	var cells := _grass_cells()
+	if cells.is_empty():
+		var camp: Vector2i = _map.camp
+		return Vector2i(camp.x + 2, camp.y + 2)
+	var camp2: Vector2i = _map.camp
+	var filtered: Array = []
+	for cell in cells:
+		var c: Vector2i = cell
+		if absi(c.x - camp2.x) + absi(c.y - camp2.y) < 7:
 			continue
-		var ang := randf() * TAU
-		_wilds.append({
-			"creature": creature,
-			"pos": Vector2(float(entry.get("x", 1.5)), float(entry.get("y", 1.5))),
-			"vel": Vector2(cos(ang), sin(ang)) * WILD_SPEED,
-			"bob": randf() * TAU,
-			"retarget": randf_range(1.2, 2.8),
-			"roster_id": str(entry.get("instance_id", creature.get("instance_id", "")))
-		})
+		var world := Vector2(float(c.x) + 0.5, float(c.y) + 0.5)
+		if world.distance_to(_pos) < 3.5:
+			continue
+		filtered.append(c)
+	if filtered.is_empty():
+		filtered = cells
+	return filtered[randi() % filtered.size()]
+
+func _tick_wild_respawns() -> void:
+	if _map.is_empty() or _busy:
+		return
+	var region_id := str(GameState.run.get("region_id", ""))
+	var roster: Array = GameState.get_wild_roster(region_id)
+	if roster.is_empty():
+		return
+	var now := Time.get_unix_time_from_system()
+	var changed := false
+	var respawned := 0
+	for entry in roster:
+		if bool(entry.get("alive", true)):
+			continue
+		if not entry.has("respawn_at"):
+			continue
+		if now < float(entry.get("respawn_at", now + 999)):
+			continue
+		var cell := _pick_respawn_cell()
+		entry["alive"] = true
+		entry.erase("respawn_at")
+		entry["x"] = float(cell.x) + 0.5
+		entry["y"] = float(cell.y) + 0.5
+		var creature: Dictionary = entry.get("creature", {})
+		if not creature.is_empty():
+			creature["hp"] = int(creature.get("max_hp", 1))
+			creature["statuses"] = []
+			entry["creature"] = creature
+		_add_live_wild(entry)
+		changed = true
+		respawned += 1
+	if changed:
+		GameState.set_wild_roster(region_id, roster)
+		if respawned > 0 and not region_panel.visible:
+			message.text = "Wild monsters have returned to the area."
+		map_draw.queue_redraw()
 
 func _build_wild_roster(region: Dictionary) -> Array:
 	var cells := _grass_cells()
@@ -244,9 +307,10 @@ func _show_intro_once() -> void:
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
 	var region := GameState.current_region()
-	hud.text = "%s  |  %s  HP %d/%d  |  Shards %d/%d" % [
+	hud.text = "%s  |  %s Lv%d  HP %d/%d  |  Shards %d/%d" % [
 		region.get("name", "?"),
 		c.get("name", "?"),
+		int(c.get("level", 1)),
 		c.get("hp", 0),
 		c.get("max_hp", 1),
 		GameState.get_bond_shards(),
@@ -260,6 +324,7 @@ func _process(delta: float) -> void:
 		_moving = false
 		return
 	_ambient_t += delta
+	_tick_wild_respawns()
 	if _contact_grace > 0.0:
 		_contact_grace = maxf(0.0, _contact_grace - delta)
 	_update_keyboard()

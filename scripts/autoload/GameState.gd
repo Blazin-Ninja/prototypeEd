@@ -3,6 +3,7 @@ extends Node
 
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
+const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const BOND_SHARD_CAP := 5
 
 var account: Dictionary = {}
@@ -74,9 +75,14 @@ func autosave() -> void:
 	SaveService.save_run(run)
 
 func get_companion() -> Dictionary:
-	return run.get("companion", {})
+	var companion: Dictionary = run.get("companion", {})
+	if not companion.is_empty():
+		LevelSystem.ensure_fields(companion)
+	return companion
 
 func set_companion(companion: Dictionary) -> void:
+	if not companion.is_empty():
+		LevelSystem.ensure_fields(companion)
 	run["companion"] = companion
 
 func current_region() -> Dictionary:
@@ -128,9 +134,9 @@ func begin_battle(enemy: Dictionary, is_boss: bool = false, wild_roster_id: Stri
 
 func end_battle_victory(enemy: Dictionary) -> void:
 	run["battles_won"] = int(run.get("battles_won", 0)) + 1
-	# Remove defeated wild from the region's persistent roster.
+	# Remove defeated wild from the region's persistent roster (schedule respawn).
 	if not bool(pending_battle.get("is_boss", false)):
-		var wid := str(pending_battle.get("wild_roster_id", enemy.get("instance_id", "")))
+		var wid := str(pending_battle.get("wild_roster_id", ""))
 		var rid := str(pending_battle.get("region_id", run.get("region_id", "")))
 		if wid != "":
 			mark_wild_defeated(rid, wid)
@@ -219,11 +225,36 @@ func mark_wild_defeated(region_id: String, instance_id: String) -> void:
 		return
 	var roster: Array = get_wild_roster(region_id)
 	var changed := false
+	var delay := randf_range(45.0, 75.0)
+	var at := Time.get_unix_time_from_system() + delay
 	for entry in roster:
 		if str(entry.get("instance_id", "")) == instance_id:
 			entry["alive"] = false
+			entry["respawn_at"] = at
+			var creature: Dictionary = entry.get("creature", {})
+			if not creature.is_empty():
+				creature["hp"] = int(creature.get("max_hp", creature.get("hp", 1)))
+				creature["statuses"] = []
+				entry["creature"] = creature
 			changed = true
 			break
+	if changed:
+		set_wild_roster(region_id, roster)
+
+func migrate_wild_respawns(region_id: String) -> void:
+	## Old saves marked wilds dead forever — give them a short respawn window.
+	var roster: Array = get_wild_roster(region_id)
+	if roster.is_empty():
+		return
+	var now := Time.get_unix_time_from_system()
+	var changed := false
+	for entry in roster:
+		if bool(entry.get("alive", true)):
+			continue
+		if entry.has("respawn_at"):
+			continue
+		entry["respawn_at"] = now + randf_range(20.0, 40.0)
+		changed = true
 	if changed:
 		set_wild_roster(region_id, roster)
 

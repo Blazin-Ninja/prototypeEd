@@ -1,6 +1,8 @@
 extends Control
 ## Turn-based battle UI — monsters only, with simple attack FX.
 
+const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
+
 @onready var log_box: RichTextLabel = $Safe/VBox/LogPanel/LogMargin/Log
 @onready var player_hp: ProgressBar = $Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol/PHP
 @onready var enemy_hp: ProgressBar = $Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol/EHP
@@ -315,7 +317,8 @@ func _play_attack_fx(from_player: bool, ability_id: String, hit: bool, critical:
 	await get_tree().create_timer(remain).timeout
 
 func _refresh() -> void:
-	player_name.text = str(player.get("name", "You"))
+	LevelSystem.ensure_fields(player)
+	player_name.text = "%s  ·  Lv %d" % [str(player.get("name", "You")), int(player.get("level", 1))]
 	enemy_name.text = str(enemy.get("name", "Enemy"))
 	var tags: Array = []
 	if is_boss:
@@ -487,6 +490,12 @@ func _do_enemy_action() -> void:
 
 func _victory() -> void:
 	_append("%s was defeated!" % enemy.get("name"))
+	var xp_result: Dictionary = LevelSystem.grant_battle_xp(player, enemy, is_boss)
+	var xp_gained := int(xp_result.get("xp_gained", 0))
+	if xp_gained > 0:
+		_append("%s gained %d XP." % [player.get("name"), xp_gained])
+	for line in xp_result.get("logs", []):
+		_append(str(line))
 	player["hp"] = int(player.get("max_hp", player.get("hp", 1)))
 	player["statuses"] = []
 	GameState.set_companion(player)

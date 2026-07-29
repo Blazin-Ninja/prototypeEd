@@ -2,6 +2,15 @@ extends Node
 ## Headless domain tests via scene so autoloads resolve.
 ## godot --headless --path . res://tests/TestRunner.tscn
 
+const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
+const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
+const EncounterSystem = preload("res://scripts/domain/EncounterSystem.gd")
+const CombatSystem = preload("res://scripts/domain/CombatSystem.gd")
+const AbsorptionSystem = preload("res://scripts/domain/AbsorptionSystem.gd")
+const AbilitySystem = preload("res://scripts/domain/AbilitySystem.gd")
+const MapGenerator = preload("res://scripts/domain/MapGenerator.gd")
+const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
+
 func _ready() -> void:
 	await get_tree().process_frame
 	var failed := 0
@@ -14,6 +23,8 @@ func _ready() -> void:
 	failed += _test_map_walkable()
 	failed += _test_obelisks()
 	failed += _test_bond_shards()
+	failed += _test_level_up()
+	failed += _test_wild_respawn()
 	failed += _test_progression_starters()
 	if failed == 0:
 		print("ALL TESTS PASSED")
@@ -112,6 +123,12 @@ func _test_obelisks() -> int:
 	f += _ok("obelisk marked cleared", GameState.is_obelisk_cleared("forest", cell))
 	var g := EncounterSystem.create_obelisk_guardian("forest")
 	f += _ok("obelisk guardian created", not g.is_empty() and bool(g.get("is_obelisk_guardian", false)))
+	f += _ok("obelisk not full alpha", not bool(g.get("is_alpha", true)))
+	var base := CreatureFactory.create_from_template(str(g.get("template_id")), {})
+	var g_atk := int(g.get("stats", {}).get("attack", 0))
+	var base_atk := int(base.get("stats", {}).get("attack", 1))
+	f += _ok("obelisk stronger than base", g_atk > base_atk)
+	f += _ok("obelisk nerfed vs old 1.82x", g_atk < int(round(float(base_atk) * 1.7)))
 	# Wild roster persistence
 	GameState.set_wild_roster("forest", [{
 		"instance_id": "w1",
@@ -121,6 +138,7 @@ func _test_obelisks() -> int:
 	GameState.mark_wild_defeated("forest", "w1")
 	var roster := GameState.get_wild_roster("forest")
 	f += _ok("wild marked defeated", roster.size() == 1 and not bool(roster[0].get("alive", true)))
+	f += _ok("wild has respawn timer", float(roster[0].get("respawn_at", 0)) > Time.get_unix_time_from_system())
 	return f
 
 func _test_bond_shards() -> int:
@@ -183,6 +201,55 @@ func _test_bond_shards() -> int:
 	boosted["passives"] = ["vital_bond"]
 	var boosted_band := CombatSystem.bond_shard_heal_range(boosted)
 	f += _ok("vital_bond raises heal band", is_equal_approx(boosted_band.x, 0.50) and is_equal_approx(boosted_band.y, 0.75))
+	return f
+
+func _test_level_up() -> int:
+	var f := 0
+	var pup := CreatureFactory.create_from_template("ember_pup", {"is_player": true})
+	LevelSystem.ensure_fields(pup)
+	f += _ok("starts at level 1", int(pup.get("level", 0)) == 1)
+	var enemy := CreatureFactory.create_from_template("brush_rat", {})
+	var before_atk := int(pup.get("stats", {}).get("attack", 0))
+	var before_hp := int(pup.get("max_hp", 0))
+	pup["xp"] = LevelSystem.xp_to_next(1) - 1
+	var res := LevelSystem.grant_battle_xp(pup, enemy, false)
+	f += _ok("grants xp", int(res.get("xp_gained", 0)) > 0)
+	f += _ok("levels up from battle xp", int(res.get("levels_gained", 0)) >= 1 and int(pup.get("level", 1)) >= 2)
+	f += _ok("level raises attack", int(pup.get("stats", {}).get("attack", 0)) > before_atk)
+	f += _ok("level raises max hp", int(pup.get("max_hp", 0)) > before_hp)
+	f += _ok("boss xp > wild xp", LevelSystem.battle_xp_reward(enemy, true) > LevelSystem.battle_xp_reward(enemy, false))
+	var ob := EncounterSystem.create_obelisk_guardian("forest", "brush_rat")
+	f += _ok("obelisk xp > wild xp", LevelSystem.battle_xp_reward(ob, false) > LevelSystem.battle_xp_reward(enemy, false))
+	return f
+
+func _test_wild_respawn() -> int:
+	var f := 0
+	GameState.start_new_run("ember_pup")
+	GameState.set_wild_roster("forest", [{
+		"instance_id": "r1",
+		"creature": {"instance_id": "r1", "name": "Rat", "max_hp": 10, "hp": 1, "statuses": [{"id": "burn", "turns": 1}]},
+		"x": 3.5, "y": 4.5, "alive": true
+	}])
+	GameState.mark_wild_defeated("forest", "r1")
+	var roster := GameState.get_wild_roster("forest")
+	f += _ok("defeated schedules respawn", not bool(roster[0].get("alive", true)) and roster[0].has("respawn_at"))
+	f += _ok("defeated heals creature for return", int(roster[0].get("creature", {}).get("hp", 0)) == 10)
+	# Simulate due respawn by backdating.
+	roster[0]["respawn_at"] = Time.get_unix_time_from_system() - 1.0
+	GameState.set_wild_roster("forest", roster)
+	GameState.migrate_wild_respawns("forest")
+	# Migration should not clear an existing due timer.
+	roster = GameState.get_wild_roster("forest")
+	f += _ok("due timer preserved", float(roster[0].get("respawn_at", 0)) <= Time.get_unix_time_from_system())
+	# Old save without timer gets one.
+	GameState.set_wild_roster("forest", [{
+		"instance_id": "old",
+		"creature": {"instance_id": "old", "name": "Old", "max_hp": 5, "hp": 5},
+		"x": 1.5, "y": 1.5, "alive": false
+	}])
+	GameState.migrate_wild_respawns("forest")
+	roster = GameState.get_wild_roster("forest")
+	f += _ok("old dead wilds get respawn timer", roster[0].has("respawn_at"))
 	return f
 
 func _test_progression_starters() -> int:

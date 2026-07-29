@@ -59,6 +59,8 @@ static func create_from_template(template_id: String, opts: Dictionary = {}) -> 
 		"is_alpha": is_alpha,
 		"is_legendary": is_legendary,
 		"is_boss": bool(template.get("is_boss", false)),
+		"level": 1,
+		"xp": 0,
 		"absorption": (template.get("absorption", {}) as Dictionary).duplicate(true)
 	}
 
