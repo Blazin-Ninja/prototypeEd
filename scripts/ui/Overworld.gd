@@ -54,7 +54,7 @@ func _ready() -> void:
 	$HUD/Buttons/ABtn.pressed.connect(_on_a)
 	$HUD/Buttons/BBtn.pressed.connect(_on_b)
 	$HUD/Buttons/MenuBtn.pressed.connect(_toggle_regions)
-	$RegionPanel/Margin/VBox/CloseBtn.pressed.connect(func(): region_panel.visible = false)
+	$RegionPanel/Margin/VBox/CloseBtn.pressed.connect(_close_region_travel)
 	_refresh_hud()
 	_show_intro_once()
 	call_deferred("_maybe_prompt_travel")
@@ -528,7 +528,9 @@ func _on_enter_tile(tile: int) -> void:
 			_refresh_hud()
 			GameState.autosave()
 		MapGenerator.TILE_EXIT:
-			_open_region_travel()
+			# Do not auto-open — exit sits near camp and was trapping players
+			# on the path to bridges. Regions button / Interact opens travel.
+			message.text = "Travel hub. Open Regions (or press A) to travel."
 		MapGenerator.TILE_OBELISK:
 			_try_activate_obelisk(_tile_at(_pos))
 		_:
@@ -553,7 +555,7 @@ func _try_activate_obelisk(cell: Vector2i) -> bool:
 	return true
 
 func _on_a() -> void:
-	if _busy:
+	if _busy or region_panel.visible:
 		return
 	# Prefer activating an obelisk underfoot / adjacent.
 	var here := _tile_at(_pos)
@@ -580,9 +582,15 @@ func _on_a() -> void:
 	if not _boss_marker.is_empty() and _pos.distance_to(_boss_marker["pos"]) < 1.2:
 		_start_battle(_boss_marker["creature"], true)
 		return
+	if _tile_type(_tile_at(_pos)) == MapGenerator.TILE_EXIT:
+		_open_region_travel()
+		return
 	_on_enter_tile(_tile_type(_tile_at(_pos)))
 
 func _on_b() -> void:
+	if region_panel.visible:
+		_close_region_travel()
+		return
 	message.text = "Companion: %s | Mutations: %d | Shards: %d | Wilds: %d" % [
 		GameState.get_companion().get("name"),
 		GameState.get_companion().get("mutations", []).size(),
@@ -591,10 +599,16 @@ func _on_b() -> void:
 	]
 
 func _toggle_regions() -> void:
-	region_panel.visible = not region_panel.visible
 	if region_panel.visible:
-		_stick = Vector2.ZERO
-		_rebuild_regions()
+		_close_region_travel()
+		return
+	_open_region_travel()
+
+func _close_region_travel() -> void:
+	region_panel.visible = false
+	_stick = Vector2.ZERO
+	if str(message.text).begins_with("Choose a region"):
+		message.text = "Travel closed. Cross bridges to explore — open Regions when you want to leave."
 
 func _open_region_travel() -> void:
 	_stick = Vector2.ZERO

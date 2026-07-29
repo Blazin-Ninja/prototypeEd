@@ -54,12 +54,18 @@ static func generate(region: Dictionary) -> Dictionary:
 	tiles[cy][cx] = TILE_CAMP
 	tiles[by][bx] = TILE_BOSS
 
-	# Exit near camp (travel hub).
-	var ex := mini(cx + 2, w - 2)
-	var ey := cy
+	# Exit near camp but off the main east/west walkway so it doesn't
+	# sit on the bridge path out of camp.
+	var ex := cx
+	var ey := mini(cy + 2, h - 2)
+	if int(tiles[ey][ex]) == TILE_WALL or not is_walkable(int(tiles[ey][ex])):
+		ey = maxi(cy - 2, 1)
 	if int(tiles[ey][ex]) == TILE_WALL:
-		ex = maxi(cx - 2, 1)
+		ex = mini(cx + 2, w - 2)
+		ey = cy
 	tiles[ey][ex] = TILE_EXIT
+	# Keep exit reachable from camp.
+	_ensure_path(tiles, Vector2i(cx, cy), Vector2i(ex, ey), w, h, hazard)
 
 	# Ensure camp/boss reachable: carve a guaranteed spine if needed.
 	_ensure_path(tiles, Vector2i(cx, cy), Vector2i(bx, by), w, h, hazard)

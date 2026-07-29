@@ -98,6 +98,9 @@ func _test_map_walkable() -> int:
 	failed += _ok("has bridges", has_bridge)
 	failed += _ok("has hazards", has_hazard)
 	failed += _ok("has obelisks", map.get("obelisks", []).size() >= 2)
+	var exit_cell: Vector2i = map.get("exit", Vector2i(-1, -1))
+	failed += _ok("has exit hub", exit_cell.x >= 0 and MapGenerator.is_walkable(int(map.tiles[exit_cell.y][exit_cell.x])))
+	failed += _ok("exit is not camp", exit_cell != camp)
 	return failed
 
 func _test_obelisks() -> int:
