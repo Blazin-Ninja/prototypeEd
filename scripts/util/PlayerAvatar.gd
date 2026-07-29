@@ -3,17 +3,23 @@ class_name PlayerAvatar
 ## Draws the human trainer + companion perched on the shoulder.
 
 const SHEET_PATH := "res://assets/player/human_walk.png"
+const SHEET_X2_PATH := "res://assets/player/human_walk_x2.png"
 const FRAME := 48
 const DIRS := ["down", "left", "right", "up"]
 
 static var _sheet: Texture2D = null
+static var _frame_px := 48
 static var _ready := false
 
 static func ensure_loaded() -> void:
 	if _ready:
 		return
-	if ResourceLoader.exists(SHEET_PATH):
+	if ResourceLoader.exists(SHEET_X2_PATH):
+		_sheet = load(SHEET_X2_PATH) as Texture2D
+		_frame_px = 96
+	elif ResourceLoader.exists(SHEET_PATH):
 		_sheet = load(SHEET_PATH) as Texture2D
+		_frame_px = FRAME
 	_ready = true
 
 static func facing_from_vector(v: Vector2) -> String:
@@ -43,6 +49,7 @@ static func draw(
 		frame = 0
 
 	var draw_scale := scale
+	# Display size stays based on the logical 48px frame so scale feels consistent.
 	var human_size := Vector2(FRAME, FRAME) * draw_scale
 
 	canvas.draw_circle(center + Vector2(0, human_size.y * 0.42), human_size.x * 0.22, Color(0, 0, 0, 0.28))
@@ -54,7 +61,7 @@ static func draw(
 
 	if _sheet != null:
 		var row := DIRS.find(dir)
-		var src := Rect2(frame * FRAME, row * FRAME, FRAME, FRAME)
+		var src := Rect2(frame * _frame_px, row * _frame_px, _frame_px, _frame_px)
 		var dst := Rect2(center - human_size * 0.5 + Vector2(0, human_size.y * 0.05), human_size)
 		canvas.draw_texture_rect_region(_sheet, dst, src)
 	else:
