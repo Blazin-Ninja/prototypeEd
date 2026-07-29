@@ -1,0 +1,10 @@
+FROZEN BACKUP — DO NOT EDIT THIS BRANCH
+
+Game version: 0.1.11 (version code 12)
+Git commit: ce4f48074f6d3cae90641a1b2a925994787ce1f2
+Tag: backup/v0.1.11-pre-graphics
+Created: 2026-07-29
+
+This branch and tag preserve the playable build before the graphics refresh.
+Do not commit gameplay or art changes here.
+Playable APK: releases/BACKUP-ChimeraBond-0.1.11-pre-graphics-debug.apk
