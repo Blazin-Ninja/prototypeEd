@@ -34,7 +34,7 @@ var _bob_t := 0.0
 var _ambient_t := 0.0
 var _wilds: Array = [] ## {creature, pos, vel, bob, roster_id}
 var _boss_marker: Dictionary = {} ## visible boss on map if undefeated
-var _obelisk_templates: Dictionary = {} ## "x,y" -> template_id for active obelisks
+var _obelisk_state: Dictionary = {} ## "x,y" -> {template_id, stage, hue}
 var _facing: String = "down"
 var _walk_phase: float = 0.0
 var _moving := false
@@ -112,18 +112,28 @@ func _load_region() -> void:
 	map_draw.queue_redraw()
 
 func _apply_obelisk_state() -> void:
-	_obelisk_templates.clear()
+	_obelisk_state.clear()
 	var region_id := str(GameState.run.get("region_id", ""))
 	var obelisks: Array = _map.get("obelisks", [])
 	for o in obelisks:
 		var cell := Vector2i(int(o.get("x", 0)), int(o.get("y", 0)))
 		if cell.y < 0 or cell.y >= int(_map.height) or cell.x < 0 or cell.x >= int(_map.width):
 			continue
+		# Legacy cleared_obelisks (and stage-3 completes) stay path — no surprise revive.
 		if GameState.is_obelisk_cleared(region_id, cell):
 			_map.tiles[cell.y][cell.x] = MapGenerator.TILE_PATH
-		else:
-			_obelisk_templates["%d,%d" % [cell.x, cell.y]] = str(o.get("template_id", ""))
-			_map.tiles[cell.y][cell.x] = MapGenerator.TILE_OBELISK
+			continue
+		var template_id := str(o.get("template_id", ""))
+		var state := GameState.ensure_obelisk_state(region_id, cell, template_id)
+		if state.is_empty():
+			_map.tiles[cell.y][cell.x] = MapGenerator.TILE_PATH
+			continue
+		_obelisk_state["%d,%d" % [cell.x, cell.y]] = {
+			"template_id": str(state.get("template_id", template_id)),
+			"stage": clampi(int(state.get("stage", 1)), 1, 3),
+			"hue": str(state.get("hue", "cyan"))
+		}
+		_map.tiles[cell.y][cell.x] = MapGenerator.TILE_OBELISK
 
 func _read_saved_pos() -> Vector2:
 	var p: Dictionary = GameState.run.get("player_pos", {"x": 1.5, "y": 14.5})
@@ -173,10 +183,32 @@ func _spawn_wilds() -> void:
 	if roster.is_empty():
 		roster = _build_wild_roster(region)
 		GameState.set_wild_roster(region_id, roster)
+	else:
+		# Re-apply hybrid pressure so backtracking reflects bosses cleared.
+		_refresh_roster_pressure(roster, region)
+		GameState.set_wild_roster(region_id, roster)
 	for entry in roster:
 		if not bool(entry.get("alive", true)):
 			continue
 		_add_live_wild(entry)
+
+func _refresh_roster_pressure(roster: Array, region: Dictionary) -> void:
+	var bosses := GameState.bosses_defeated_count()
+	for entry in roster:
+		var creature: Dictionary = entry.get("creature", {})
+		if creature.is_empty():
+			continue
+		var hp := int(creature.get("hp", 0))
+		var max_hp := int(creature.get("max_hp", 1))
+		var ratio := 1.0
+		if max_hp > 0:
+			ratio = clampf(float(hp) / float(max_hp), 0.0, 1.0)
+		EncounterSystem.refresh_wild_pressure(creature, region, bosses)
+		if bool(entry.get("alive", true)):
+			creature["hp"] = maxi(1, int(round(float(creature.get("max_hp", 1)) * ratio)))
+		else:
+			creature["hp"] = int(creature.get("max_hp", 1))
+		entry["creature"] = creature
 
 func _add_live_wild(entry: Dictionary) -> void:
 	var creature: Dictionary = entry.get("creature", {})
@@ -239,9 +271,14 @@ func _tick_wild_respawns() -> void:
 		entry["y"] = float(cell.y) + 0.5
 		var creature: Dictionary = entry.get("creature", {})
 		if not creature.is_empty():
-			creature["hp"] = int(creature.get("max_hp", 1))
 			creature["statuses"] = []
 			EncounterSystem.apply_random_wild_elements(creature)
+			EncounterSystem.refresh_wild_pressure(
+				creature,
+				GameState.current_region(),
+				GameState.bosses_defeated_count()
+			)
+			creature["hp"] = int(creature.get("max_hp", 1))
 			entry["creature"] = creature
 		_add_live_wild(entry)
 		changed = true
@@ -272,7 +309,11 @@ func _build_wild_roster(region: Dictionary) -> Array:
 	var roster: Array = []
 	for i in count:
 		var cell: Vector2i = filtered[i]
-		var wild := EncounterSystem.roll_wild(str(region.get("id")), GameState.account)
+		var wild := EncounterSystem.roll_wild(
+			str(region.get("id")),
+			GameState.account,
+			GameState.bosses_defeated_count()
+		)
 		if wild.is_empty():
 			continue
 		roster.append({
@@ -504,7 +545,11 @@ func _paint_world(canvas: CanvasItem) -> void:
 		for x in range(min_x, max_x + 1):
 			var t: int = tiles[y][x]
 			var rect := Rect2(origin + Vector2(x, y) * TILE, Vector2(TILE, TILE))
-			TileArt.draw_tile(canvas, t, rect, grass, pathc, _ambient_t)
+			var obelisk_tint := Color(1, 1, 1, 1)
+			if t == MapGenerator.TILE_OBELISK:
+				var ostate: Dictionary = _obelisk_state.get("%d,%d" % [x, y], {})
+				obelisk_tint = EncounterSystem.obelisk_hue_color(str(ostate.get("hue", "cyan")))
+			TileArt.draw_tile(canvas, t, rect, grass, pathc, _ambient_t, obelisk_tint)
 
 	# Visible wild creatures — large, ringed, labeled so they never blend into tiles.
 	var view := Rect2(Vector2.ZERO, sz).grow(96.0)
@@ -623,12 +668,24 @@ func _try_activate_obelisk(cell: Vector2i) -> bool:
 	if GameState.is_obelisk_cleared(region_id, cell):
 		return false
 	var key := "%d,%d" % [cell.x, cell.y]
-	var template_id := str(_obelisk_templates.get(key, ""))
-	var guardian := EncounterSystem.create_obelisk_guardian(region_id, template_id)
+	var state: Dictionary = _obelisk_state.get(key, {})
+	if state.is_empty():
+		state = GameState.ensure_obelisk_state(region_id, cell, "")
+	var template_id := str(state.get("template_id", ""))
+	var stage := clampi(int(state.get("stage", 1)), 1, 3)
+	var guardian := EncounterSystem.create_obelisk_guardian(
+		region_id,
+		template_id,
+		stage,
+		GameState.bosses_defeated_count()
+	)
 	if guardian.is_empty():
 		message.text = "The obelisk stays silent."
 		return false
-	message.text = "The obelisk awakens — %s emerges!" % guardian.get("name", "Guardian")
+	var hue := str(guardian.get("obelisk_hue", state.get("hue", "cyan"))).capitalize()
+	message.text = "Obelisk %d/3 (%s) awakens — %s emerges!" % [
+		stage, hue, guardian.get("name", "Guardian")
+	]
 	_start_battle(guardian, false, "", cell)
 	return true
 

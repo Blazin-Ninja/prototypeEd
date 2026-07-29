@@ -72,7 +72,11 @@ func _ready() -> void:
 	if is_boss:
 		intro = "[b]BOSS[/b] — %s blocks the path!" % enemy.get("name", "Enemy")
 	elif enemy.get("is_obelisk_guardian", false):
-		intro = "[b]OBELISK[/b] — %s answers the call!" % enemy.get("name", "Guardian")
+		var stage := clampi(int(enemy.get("obelisk_stage", 1)), 1, 3)
+		var hue := str(enemy.get("obelisk_hue", "cyan")).capitalize()
+		intro = "[b]OBELISK %d/3 · %s[/b] — %s answers the call!" % [
+			stage, hue, enemy.get("name", "Guardian")
+		]
 	_append(intro)
 
 func _use_bond_shard() -> void:
@@ -511,6 +515,11 @@ func _victory() -> void:
 	if is_boss:
 		GameState.mark_boss_defeated(str(enemy.get("template_id", enemy.get("id"))))
 	GameState.end_battle_victory(enemy)
+	var bonus_log := str(GameState.run.get("pending_obelisk_bonus_log", ""))
+	if bonus_log != "":
+		GameState.run["pending_obelisk_bonus_log"] = ""
+		_append(bonus_log)
+		await get_tree().create_timer(0.45).timeout
 	var drop: Dictionary = GameState.try_grant_bond_shard_drop(enemy, is_boss)
 	if bool(drop.get("granted", false)):
 		_append(str(drop.get("log", "Found a Bond Shard!")))

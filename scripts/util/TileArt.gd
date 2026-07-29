@@ -8,7 +8,15 @@ const TILE_SIZE := 48
 static var _cache: Dictionary = {}
 static var _anim: Dictionary = {}
 
-static func draw_tile(ci: CanvasItem, tile: int, rect: Rect2, grass_tint: Color, path_tint: Color, ambient_t: float) -> void:
+static func draw_tile(
+	ci: CanvasItem,
+	tile: int,
+	rect: Rect2,
+	grass_tint: Color,
+	path_tint: Color,
+	ambient_t: float,
+	obelisk_tint: Color = Color(1, 1, 1, 1)
+) -> void:
 	match tile:
 		MapGenerator.TILE_GRASS:
 			_blit(ci, "grass", rect, grass_tint)
@@ -30,7 +38,7 @@ static func draw_tile(ci: CanvasItem, tile: int, rect: Rect2, grass_tint: Color,
 			_blit(ci, "boss", rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_OBELISK:
 			_blit(ci, "path", rect, path_tint)
-			_blit(ci, "obelisk", rect, Color(1, 1, 1, 1))
+			_blit(ci, "obelisk", rect, obelisk_tint)
 		MapGenerator.TILE_WATER:
 			_blit(ci, _frame("water", ambient_t, 3.0), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_LAVA:

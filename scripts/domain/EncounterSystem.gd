@@ -5,8 +5,10 @@ const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
 
 const WILD_ELEMENT_POOL := ["nature", "fire", "water", "normal", "ice", "wind", "poison"]
+const OBELISK_STAGE_MULTS := [1.22, 1.40, 1.60]
+const OBELISK_STAGE_HUES := ["cyan", "amber", "violet"]
 
-static func roll_wild(region_id: String, account: Dictionary) -> Dictionary:
+static func roll_wild(region_id: String, account: Dictionary, bosses_defeated: int = 0) -> Dictionary:
 	var wilds := DataRegistry.get_wilds_for_region(region_id)
 	if wilds.is_empty():
 		return {}
@@ -32,10 +34,49 @@ static func roll_wild(region_id: String, account: Dictionary) -> Dictionary:
 		"is_legendary": is_legendary
 	})
 	apply_random_wild_elements(creature)
+	var region := DataRegistry.get_region(region_id)
+	apply_wild_pressure(creature, compute_wild_pressure(region, bosses_defeated))
 	return creature
 
 static func wild_element_pool() -> Array:
 	return WILD_ELEMENT_POOL.duplicate()
+
+static func compute_wild_pressure(region: Dictionary, bosses_defeated: int) -> float:
+	## Hybrid: region sets the floor; bosses cleared nudge global a bit harder.
+	var region_tier := float(int(region.get("index", 1)) - 1)
+	var global := 0.35 * float(maxi(0, bosses_defeated))
+	return clampf(region_tier + global, 0.0, 8.0)
+
+static func snapshot_unscaled_stats(creature: Dictionary) -> void:
+	if creature.is_empty():
+		return
+	if creature.has("unscaled_stats"):
+		return
+	creature["unscaled_stats"] = (creature.get("stats", {}) as Dictionary).duplicate(true)
+
+static func apply_wild_pressure(creature: Dictionary, pressure: float) -> void:
+	## Stats ≈ 1.0 + 0.10 * pressure · HP ≈ 1.0 + 0.12 * pressure (from unscaled base).
+	if creature.is_empty():
+		return
+	snapshot_unscaled_stats(creature)
+	var base: Dictionary = creature.get("unscaled_stats", creature.get("stats", {}))
+	var p := clampf(pressure, 0.0, 8.0)
+	var stat_m := 1.0 + 0.10 * p
+	var hp_m := 1.0 + 0.12 * p
+	var stats: Dictionary = {}
+	for key in ["attack", "defense", "special_attack", "special_defense", "speed"]:
+		stats[key] = maxi(1, int(round(float(base.get(key, 10)) * stat_m)))
+	stats["hp"] = maxi(1, int(round(float(base.get("hp", 10)) * hp_m)))
+	creature["stats"] = stats
+	creature["max_hp"] = int(stats["hp"])
+	creature["hp"] = int(stats["hp"])
+	creature["wild_pressure"] = p
+
+static func refresh_wild_pressure(creature: Dictionary, region: Dictionary, bosses_defeated: int) -> void:
+	## Re-apply current hybrid pressure without stacking (uses unscaled snapshot).
+	if creature.is_empty():
+		return
+	apply_wild_pressure(creature, compute_wild_pressure(region, bosses_defeated))
 
 static func apply_random_wild_elements(creature: Dictionary) -> void:
 	## Grass/Fire/Water/Normal/Ice/Flying/Poison — 1 primary, sometimes a second.
@@ -57,8 +98,30 @@ static func should_trigger_encounter(region: Dictionary, on_grass: bool) -> bool
 		return false
 	return randf() < float(region.get("grass_encounter_chance", 0.15))
 
-static func create_obelisk_guardian(region_id: String, template_id: String = "") -> Dictionary:
-	## Optional side fight: one mild guardian tier (~1.22×), not alpha double-dip.
+static func obelisk_stage_mult(stage: int) -> float:
+	var idx := clampi(stage, 1, OBELISK_STAGE_MULTS.size()) - 1
+	return float(OBELISK_STAGE_MULTS[idx])
+
+static func obelisk_stage_hue(stage: int) -> String:
+	var idx := clampi(stage, 1, OBELISK_STAGE_HUES.size()) - 1
+	return str(OBELISK_STAGE_HUES[idx])
+
+static func obelisk_hue_color(hue: String) -> Color:
+	match hue:
+		"amber":
+			return Color(1.0, 0.72, 0.28, 1.0)
+		"violet":
+			return Color(0.72, 0.45, 1.0, 1.0)
+		_:
+			return Color(0.35, 0.92, 1.0, 1.0) # cyan
+
+static func create_obelisk_guardian(
+	region_id: String,
+	template_id: String = "",
+	stage: int = 1,
+	bosses_defeated: int = 0
+) -> Dictionary:
+	## In-place stages on regional wild base: ~1.22 / 1.40 / 1.60 (cyan/amber/violet).
 	var tid := template_id
 	if tid == "":
 		var wilds := DataRegistry.get_wilds_for_region(region_id)
@@ -67,20 +130,26 @@ static func create_obelisk_guardian(region_id: String, template_id: String = "")
 		tid = str(wilds[randi() % wilds.size()].get("id", ""))
 	if tid == "":
 		return {}
+	var stage_n := clampi(stage, 1, 3)
 	var guardian := CreatureFactory.create_from_template(tid, {
 		"is_alpha": false,
 		"is_legendary": false
 	})
 	apply_random_wild_elements(guardian)
+	var region := DataRegistry.get_region(region_id)
+	apply_wild_pressure(guardian, compute_wild_pressure(region, bosses_defeated))
+	var stage_mult := obelisk_stage_mult(stage_n)
 	var stats: Dictionary = guardian.get("stats", {})
 	for key in ["hp", "attack", "defense", "special_attack", "special_defense", "speed"]:
-		stats[key] = int(round(float(stats.get(key, 10)) * 1.22))
+		stats[key] = maxi(1, int(round(float(stats.get(key, 10)) * stage_mult)))
 	guardian["stats"] = stats
 	guardian["max_hp"] = int(stats.get("hp", guardian.get("max_hp", 1)))
 	guardian["hp"] = int(guardian["max_hp"])
 	guardian["name"] = "%s Obelisk" % str(guardian.get("name", "Guardian"))
 	guardian["is_obelisk_guardian"] = true
 	guardian["is_alpha"] = false
+	guardian["obelisk_stage"] = stage_n
+	guardian["obelisk_hue"] = obelisk_stage_hue(stage_n)
 	return guardian
 
 static func create_boss(region: Dictionary, bosses_already_defeated: int = 0) -> Dictionary:
@@ -96,6 +165,7 @@ static func create_boss(region: Dictionary, bosses_already_defeated: int = 0) ->
 
 static func _scale_boss_for_progress(boss: Dictionary, tier: int) -> void:
 	## Stronger the more main bosses you've already beaten this run.
+	## Keep existing bosses_defeated curve only — no extra stack with wild pressure.
 	tier = clampi(tier, 0, 8)
 	var jitter := randf_range(-0.03, 0.03)
 	var mult := 1.0 + 0.12 * float(tier) + jitter

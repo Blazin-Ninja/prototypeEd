@@ -22,7 +22,9 @@ static func battle_xp_reward(enemy: Dictionary, is_boss: bool) -> int:
 	if is_boss:
 		base = 28
 	elif bool(enemy.get("is_obelisk_guardian", false)):
-		base = 14
+		# Stage 1/2/3: 14 / 18 / 24 — violet is best XP of the chain.
+		var stage := clampi(int(enemy.get("obelisk_stage", 1)), 1, 3)
+		base = 10 + stage * 4
 	elif bool(enemy.get("is_legendary", false)):
 		base = 22
 	elif bool(enemy.get("is_alpha", false)):

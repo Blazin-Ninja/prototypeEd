@@ -4,6 +4,7 @@ extends Node
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
+const EncounterSystem = preload("res://scripts/domain/EncounterSystem.gd")
 const BOND_SHARD_CAP := 5
 
 var account: Dictionary = {}
@@ -37,6 +38,10 @@ func continue_run() -> bool:
 		autosave()
 	else:
 		run["bond_shards"] = clampi(int(run.get("bond_shards", 1)), 0, BOND_SHARD_CAP)
+	# Migrate pre–obelisk stage saves.
+	if not run.has("obelisk_progress"):
+		run["obelisk_progress"] = {}
+		autosave()
 	return true
 
 func start_new_run(starter_id: String) -> void:
@@ -62,6 +67,7 @@ func start_new_run(starter_id: String) -> void:
 		"alive": true,
 		"steps": 0,
 		"cleared_obelisks": [],
+		"obelisk_progress": {},
 		"wild_rosters": {},
 		"bond_shards": 1
 	}
@@ -143,7 +149,10 @@ func end_battle_victory(enemy: Dictionary) -> void:
 		var ox := int(pending_battle.get("obelisk_x", -1))
 		var oy := int(pending_battle.get("obelisk_y", -1))
 		if ox >= 0 and oy >= 0:
-			mark_obelisk_cleared(rid, Vector2i(ox, oy))
+			var adv := advance_obelisk(rid, Vector2i(ox, oy))
+			if bool(adv.get("bonus", false)):
+				enemy["obelisk_final_clear"] = true
+				_grant_obelisk_clear_bonus()
 	pending_absorb = {"enemy": enemy}
 	autosave()
 	EventBus.battle_ended.emit("win")
@@ -197,6 +206,7 @@ func obelisk_key(region_id: String, cell: Vector2i) -> String:
 	return "%s:%d,%d" % [region_id, cell.x, cell.y]
 
 func is_obelisk_cleared(region_id: String, cell: Vector2i) -> bool:
+	## Legacy cleared_obelisks entries stay path forever (no surprise stage-2 on old saves).
 	return run.get("cleared_obelisks", []).has(obelisk_key(region_id, cell))
 
 func mark_obelisk_cleared(region_id: String, cell: Vector2i) -> void:
@@ -205,7 +215,103 @@ func mark_obelisk_cleared(region_id: String, cell: Vector2i) -> void:
 	if not cleared.has(key):
 		cleared.append(key)
 		run["cleared_obelisks"] = cleared
-		autosave()
+	var progress: Dictionary = run.get("obelisk_progress", {})
+	if progress.has(key):
+		progress.erase(key)
+		run["obelisk_progress"] = progress
+	autosave()
+
+func get_obelisk_state(region_id: String, cell: Vector2i) -> Dictionary:
+	if is_obelisk_cleared(region_id, cell):
+		return {}
+	var progress: Dictionary = run.get("obelisk_progress", {})
+	var key := obelisk_key(region_id, cell)
+	var state = progress.get(key, null)
+	if state == null or not (state is Dictionary):
+		return {}
+	return state
+
+func ensure_obelisk_state(region_id: String, cell: Vector2i, template_id: String) -> Dictionary:
+	## Persist stage/hue/template_id per cell. Starts at stage 1 (cyan).
+	if is_obelisk_cleared(region_id, cell):
+		return {}
+	var key := obelisk_key(region_id, cell)
+	var progress: Dictionary = run.get("obelisk_progress", {})
+	if progress.has(key) and progress[key] is Dictionary:
+		var existing: Dictionary = progress[key]
+		if str(existing.get("template_id", "")) == "" and template_id != "":
+			existing["template_id"] = template_id
+			progress[key] = existing
+			run["obelisk_progress"] = progress
+			autosave()
+		return existing
+	var stage := 1
+	var state := {
+		"stage": stage,
+		"hue": EncounterSystem.obelisk_stage_hue(stage),
+		"template_id": template_id
+	}
+	progress[key] = state
+	run["obelisk_progress"] = progress
+	autosave()
+	return state
+
+func advance_obelisk(region_id: String, cell: Vector2i) -> Dictionary:
+	## Win current stage → upgrade in place (2/3) or path + bonus (after stage 3).
+	if is_obelisk_cleared(region_id, cell):
+		return {"cleared": true, "already": true, "bonus": false}
+	var key := obelisk_key(region_id, cell)
+	var progress: Dictionary = run.get("obelisk_progress", {})
+	var state: Dictionary = {}
+	if progress.has(key) and progress[key] is Dictionary:
+		state = progress[key]
+	else:
+		state = {"stage": 1, "hue": "cyan", "template_id": ""}
+	var fought := clampi(int(state.get("stage", 1)), 1, 3)
+	if fought >= 3:
+		mark_obelisk_cleared(region_id, cell)
+		return {
+			"cleared": true,
+			"final": true,
+			"bonus": true,
+			"stage": 3,
+			"hue": str(state.get("hue", "violet")),
+			"template_id": str(state.get("template_id", ""))
+		}
+	var next_stage := fought + 1
+	state["stage"] = next_stage
+	state["hue"] = EncounterSystem.obelisk_stage_hue(next_stage)
+	progress[key] = state
+	run["obelisk_progress"] = progress
+	autosave()
+	return {
+		"cleared": false,
+		"final": false,
+		"bonus": false,
+		"stage": next_stage,
+		"hue": str(state["hue"]),
+		"template_id": str(state.get("template_id", ""))
+	}
+
+func _grant_obelisk_clear_bonus() -> void:
+	## Stage-3 shatter bonus: guaranteed Bond Shard when under cap.
+	var current := get_bond_shards()
+	if current >= BOND_SHARD_CAP:
+		run["pending_obelisk_bonus_log"] = "Obelisk shattered! The path opens."
+		return
+	set_bond_shards(current + 1)
+	run["pending_obelisk_bonus_log"] = "Obelisk shattered! Bonus Bond Shard (%d/%d)." % [
+		get_bond_shards(), BOND_SHARD_CAP
+	]
+
+func bosses_defeated_count() -> int:
+	return int(run.get("bosses_defeated", []).size())
+
+func wild_pressure_for_region(region_id: String) -> float:
+	return EncounterSystem.compute_wild_pressure(
+		DataRegistry.get_region(region_id),
+		bosses_defeated_count()
+	)
 
 func get_wild_roster(region_id: String) -> Array:
 	var rosters: Dictionary = run.get("wild_rosters", {})
@@ -287,7 +393,9 @@ func try_grant_bond_shard_drop(enemy: Dictionary, is_boss_fight: bool) -> Dictio
 	if is_boss_fight:
 		chance = 0.30
 	elif bool(enemy.get("is_obelisk_guardian", false)):
-		chance = 0.20
+		# Stage 1/2/3: 20% / 30% / 40% — stage 3 is best of the chain.
+		var stage := clampi(int(enemy.get("obelisk_stage", 1)), 1, 3)
+		chance = 0.10 + 0.10 * float(stage)
 	if randf() >= chance:
 		return {"granted": false, "shards": current, "log": ""}
 	set_bond_shards(current + 1)
