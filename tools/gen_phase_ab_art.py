@@ -1,231 +1,292 @@
 #!/usr/bin/env python3
-"""Generate Chimera Bond tile atlas + simple UI chrome (Phase B/A assets)."""
+"""High-quality Chimera Bond tiles + UI chrome (v0.1.13 graphics pass)."""
 from __future__ import annotations
 
 import math
-import os
+import random
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path("/workspace/assets")
 TILES = ROOT / "tiles"
 UI = ROOT / "ui"
 TILES.mkdir(parents=True, exist_ok=True)
 UI.mkdir(parents=True, exist_ok=True)
-SIZE = 48
+SIZE = 64
+
+
+def clamp(v: int) -> int:
+    return max(0, min(255, v))
+
+
+def mix(a, b, t: float):
+    return tuple(clamp(int(a[i] * (1 - t) + b[i] * t)) for i in range(3)) + (255,)
 
 
 def new_img(color=(0, 0, 0, 255)) -> Image.Image:
     return Image.new("RGBA", (SIZE, SIZE), color)
 
 
-def px(draw: ImageDraw.ImageDraw, x: int, y: int, color, s: int = 1) -> None:
-    draw.rectangle([x, y, x + s - 1, y + s - 1], fill=color)
-
-
-def dither_fill(img: Image.Image, base, speck, dens: float = 0.12) -> None:
-    import random
-
-    rnd = random.Random(hash(base) & 0xFFFFFFFF)
+def noise_layer(seed: int, a, b, scale: float = 0.12) -> Image.Image:
+    rnd = random.Random(seed)
+    img = new_img(a + (255,))
     pix = img.load()
     for y in range(SIZE):
         for x in range(SIZE):
-            if rnd.random() < dens:
-                pix[x, y] = speck
-
-
-def make_grass() -> Image.Image:
-    img = new_img((36, 92, 58, 255))
-    d = ImageDraw.Draw(img)
-    for y in range(0, SIZE, 4):
-        for x in range(0, SIZE, 4):
-            c = (42, 110, 68, 255) if (x + y) % 8 == 0 else (30, 78, 50, 255)
-            px(d, x, y, c, 2)
-    # tufts
-    for x, y in [(6, 10), (18, 22), (30, 8), (38, 28), (12, 34), (26, 38)]:
-        d.line([(x, y + 4), (x, y)], fill=(70, 150, 85, 255), width=1)
-        d.line([(x, y + 4), (x - 2, y + 1)], fill=(55, 130, 75, 220), width=1)
-    dither_fill(img, (36, 92, 58), (55, 125, 70, 180), 0.06)
+            n = (
+                math.sin(x * scale + seed) * math.cos(y * scale * 1.3)
+                + rnd.random() * 0.35
+            )
+            t = (n + 1.2) / 2.4
+            pix[x, y] = mix(a, b, max(0.0, min(1.0, t)))
     return img
 
 
-def make_path() -> Image.Image:
-    img = new_img((92, 78, 58, 255))
+def make_grass() -> Image.Image:
+    img = noise_layer(11, (34, 86, 52), (48, 120, 70), 0.18)
     d = ImageDraw.Draw(img)
-    for y in range(SIZE):
-        for x in range(SIZE):
-            if (x + y * 3) % 7 == 0:
-                px(d, x, y, (110, 95, 70, 255))
-            elif (x * 2 + y) % 11 == 0:
-                px(d, x, y, (70, 60, 45, 255))
-    # edge wear
-    d.rectangle([0, 0, SIZE - 1, 1], fill=(70, 60, 48, 180))
-    d.rectangle([0, SIZE - 2, SIZE - 1, SIZE - 1], fill=(70, 60, 48, 180))
+    rnd = random.Random(42)
+    for _ in range(55):
+        x = rnd.randint(2, SIZE - 3)
+        y = rnd.randint(4, SIZE - 4)
+        h = rnd.randint(3, 7)
+        col = (70, 150, 90, 230) if rnd.random() > 0.4 else (28, 70, 42, 230)
+        d.line([(x, y), (x - 1, y - h)], fill=col, width=1)
+        if rnd.random() > 0.6:
+            d.point((x - 1, y - h - 1), fill=(120, 190, 100, 200))
+    # soft vignette edge
+    overlay = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    od.rectangle([0, 0, SIZE - 1, SIZE - 1], outline=(20, 50, 30, 40), width=2)
+    return Image.alpha_composite(img, overlay)
+
+
+def make_path() -> Image.Image:
+    img = noise_layer(7, (110, 88, 60), (145, 118, 82), 0.22)
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(9)
+    for _ in range(18):
+        x = rnd.randint(4, SIZE - 8)
+        y = rnd.randint(4, SIZE - 8)
+        d.ellipse([x, y, x + rnd.randint(3, 7), y + rnd.randint(2, 5)], fill=(90, 70, 48, 160))
+    d.rectangle([0, 0, SIZE - 1, 2], fill=(80, 62, 42, 90))
+    d.rectangle([0, SIZE - 3, SIZE - 1, SIZE - 1], fill=(80, 62, 42, 90))
     return img
 
 
 def make_wall() -> Image.Image:
-    img = new_img((22, 26, 28, 255))
+    img = noise_layer(3, (28, 32, 36), (48, 54, 60), 0.3)
     d = ImageDraw.Draw(img)
-    for y in range(0, SIZE, 8):
-        offset = 4 if (y // 8) % 2 else 0
-        for x in range(-offset, SIZE, 12):
-            d.rectangle([x, y, x + 10, y + 6], outline=(40, 46, 50, 255), fill=(28, 32, 36, 255))
-    d.rectangle([0, 0, SIZE - 1, SIZE - 1], outline=(12, 14, 16, 255))
+    for row, y in enumerate(range(2, SIZE, 14)):
+        off = 7 if row % 2 else 0
+        for x in range(-off, SIZE, 16):
+            d.rounded_rectangle(
+                [x, y, x + 14, y + 11],
+                radius=2,
+                outline=(18, 20, 22, 255),
+                fill=(40, 46, 52, 255),
+            )
+            d.line([(x + 2, y + 2), (x + 10, y + 2)], fill=(70, 78, 86, 90), width=1)
     return img
 
 
 def make_rock() -> Image.Image:
-    img = new_img((0, 0, 0, 0))
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    # ground hint
-    d.ellipse([4, 30, 44, 46], fill=(50, 55, 48, 180))
-    d.polygon([(10, 34), (24, 8), (40, 34), (34, 40), (14, 40)], fill=(88, 92, 96, 255))
-    d.polygon([(14, 30), (24, 12), (28, 30)], fill=(120, 124, 128, 255))
-    d.line([(16, 36), (30, 20)], fill=(60, 64, 68, 255), width=1)
+    d.ellipse([8, 40, 56, 58], fill=(30, 40, 28, 110))
+    d.polygon([(12, 46), (30, 10), (52, 46), (44, 54), (18, 54)], fill=(108, 112, 118, 255))
+    d.polygon([(18, 40), (30, 14), (36, 40)], fill=(150, 154, 160, 255))
+    d.line([(20, 48), (38, 24)], fill=(70, 74, 80, 255), width=2)
+    d.ellipse([34, 28, 42, 34], fill=(170, 174, 180, 180))
     return img
 
 
 def make_bridge() -> Image.Image:
-    img = new_img((78, 52, 28, 255))
+    img = new_img((70, 44, 24, 255))
     d = ImageDraw.Draw(img)
-    for y in range(4, SIZE, 10):
-        d.rectangle([2, y, SIZE - 3, y + 7], fill=(110, 78, 42, 255), outline=(60, 38, 20, 255))
-        d.line([(6, y + 3), (SIZE - 6, y + 3)], fill=(140, 100, 55, 160), width=1)
-    d.rectangle([0, 0, 2, SIZE - 1], fill=(55, 35, 18, 255))
-    d.rectangle([SIZE - 3, 0, SIZE - 1, SIZE - 1], fill=(55, 35, 18, 255))
+    for y in range(4, SIZE, 12):
+        d.rounded_rectangle([3, y, SIZE - 4, y + 9], radius=2, fill=(128, 86, 48, 255), outline=(60, 36, 18, 255))
+        d.line([(8, y + 3), (SIZE - 8, y + 3)], fill=(170, 120, 70, 120), width=1)
+        d.line([(10, y + 6), (SIZE - 10, y + 6)], fill=(50, 30, 14, 80), width=1)
+    d.rectangle([0, 0, 4, SIZE - 1], fill=(48, 28, 14, 255))
+    d.rectangle([SIZE - 5, 0, SIZE - 1, SIZE - 1], fill=(48, 28, 14, 255))
     return img
 
 
-def make_water_frame(phase: int) -> Image.Image:
-    img = new_img((22, 78, 110, 255))
-    d = ImageDraw.Draw(img)
+def make_water(phase: int) -> Image.Image:
+    img = new_img((18, 72, 108, 255))
+    pix = img.load()
     for y in range(SIZE):
         for x in range(SIZE):
-            wave = math.sin((x + phase * 3) * 0.35 + y * 0.2) 
-            if wave > 0.35:
-                px(d, x, y, (40, 110, 140, 255))
-            elif wave < -0.4:
-                px(d, x, y, (14, 55, 85, 255))
-    # foam line
-    yy = 14 + (phase % 3) * 2
-    d.line([(4, yy), (44, yy - 2)], fill=(160, 210, 230, 100), width=2)
+            w = math.sin((x + phase * 4) * 0.22 + y * 0.15) + math.cos((y - phase) * 0.18)
+            if w > 0.55:
+                pix[x, y] = (70, 150, 185, 255)
+            elif w > 0.1:
+                pix[x, y] = (36, 105, 145, 255)
+            elif w < -0.55:
+                pix[x, y] = (10, 48, 78, 255)
+    d = ImageDraw.Draw(img)
+    yy = 18 + (phase % 4) * 3
+    d.arc([6, yy - 8, 58, yy + 10], 200, 340, fill=(190, 230, 245, 110), width=2)
     return img
 
 
-def make_lava_frame(phase: int) -> Image.Image:
-    img = new_img((150, 40, 12, 255))
-    d = ImageDraw.Draw(img)
+def make_lava(phase: int) -> Image.Image:
+    img = new_img((130, 28, 8, 255))
+    pix = img.load()
     for y in range(SIZE):
         for x in range(SIZE):
-            n = math.sin((x * 0.4) + phase) * math.cos((y * 0.35) - phase * 0.7)
-            if n > 0.4:
-                px(d, x, y, (255, 160, 40, 255))
-            elif n > 0.0:
-                px(d, x, y, (220, 90, 20, 255))
-            elif n < -0.45:
-                px(d, x, y, (90, 18, 8, 255))
-    d.ellipse([16 + phase, 16, 28 + phase, 28], fill=(255, 200, 80, 160))
+            n = math.sin(x * 0.28 + phase * 0.9) * math.cos(y * 0.24 - phase * 0.6)
+            if n > 0.45:
+                pix[x, y] = (255, 170, 50, 255)
+            elif n > 0.05:
+                pix[x, y] = (220, 90, 20, 255)
+            elif n < -0.5:
+                pix[x, y] = (70, 12, 6, 255)
+    d = ImageDraw.Draw(img)
+    d.ellipse([20 + phase, 18, 36 + phase, 34], fill=(255, 220, 120, 140))
     return img
 
 
-def make_void_frame(phase: int) -> Image.Image:
-    img = new_img((10, 8, 18, 255))
+def make_void(phase: int) -> Image.Image:
+    img = new_img((8, 6, 16, 255))
     d = ImageDraw.Draw(img)
-    cx, cy = 24, 24
-    r = 10 + phase
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(80, 60, 140, 180))
-    d.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=(40, 30, 70, 255))
-    for a in range(0, 360, 45):
-        rad = math.radians(a + phase * 12)
-        x2 = cx + int(math.cos(rad) * 18)
-        y2 = cy + int(math.sin(rad) * 18)
-        d.line([(cx, cy), (x2, y2)], fill=(60, 45, 100, 100), width=1)
+    cx = cy = 32
+    for i, r in enumerate([26, 18, 10, 4]):
+        col = (50 + i * 20, 30 + i * 10, 90 + i * 25, 160 - i * 20)
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=col, width=2)
+    for a in range(0, 360, 30):
+        rad = math.radians(a + phase * 10)
+        d.line(
+            [(cx, cy), (cx + int(math.cos(rad) * 28), cy + int(math.sin(rad) * 28))],
+            fill=(70, 50, 120, 70),
+            width=1,
+        )
+    d.ellipse([28, 28, 36, 36], fill=(120, 90, 200, 220))
     return img
 
 
 def make_camp() -> Image.Image:
-    img = make_path().copy()
+    img = make_path()
     d = ImageDraw.Draw(img)
-    # bedroll / fire ring
-    d.ellipse([10, 18, 38, 40], outline=(60, 50, 40, 255), fill=(70, 55, 40, 255))
-    d.polygon([(24, 10), (18, 26), (30, 26)], fill=(220, 120, 40, 255))
-    d.polygon([(24, 6), (20, 18), (28, 18)], fill=(255, 200, 80, 220))
+    d.ellipse([14, 28, 50, 54], fill=(70, 52, 34, 255), outline=(40, 28, 18, 255))
+    d.polygon([(32, 10), (22, 34), (42, 34)], fill=(230, 110, 40, 255))
+    d.polygon([(32, 4), (26, 24), (38, 24)], fill=(255, 210, 90, 230))
+    d.ellipse([28, 36, 36, 44], fill=(255, 160, 60, 200))
     return img
 
 
 def make_exit() -> Image.Image:
-    img = make_path().copy()
+    img = make_path()
     d = ImageDraw.Draw(img)
-    d.ellipse([8, 8, 40, 40], outline=(70, 150, 220, 255), width=3)
-    d.ellipse([14, 14, 34, 34], fill=(40, 100, 170, 200))
-    d.ellipse([20, 20, 28, 28], fill=(180, 230, 255, 230))
+    d.ellipse([10, 10, 54, 54], outline=(80, 170, 230, 255), width=4)
+    d.ellipse([18, 18, 46, 46], fill=(30, 90, 150, 210))
+    d.ellipse([26, 26, 38, 38], fill=(180, 235, 255, 240))
+    d.arc([14, 14, 50, 50], 200, 320, fill=(200, 240, 255, 120), width=2)
     return img
 
 
 def make_boss() -> Image.Image:
-    img = make_path().copy()
+    img = make_path()
     d = ImageDraw.Draw(img)
-    d.rectangle([8, 10, 40, 40], fill=(90, 25, 35, 255), outline=(40, 10, 15, 255))
-    d.polygon([(24, 4), (8, 16), (40, 16)], fill=(140, 35, 45, 255))
-    d.rectangle([20, 22, 28, 34], fill=(255, 80, 70, 200))
+    d.rounded_rectangle([12, 18, 52, 54], radius=4, fill=(110, 28, 38, 255), outline=(50, 10, 16, 255), width=2)
+    d.polygon([(32, 4), (10, 22), (54, 22)], fill=(150, 40, 50, 255))
+    d.rectangle([28, 28, 36, 46], fill=(255, 90, 80, 220))
+    d.ellipse([24, 24, 40, 32], fill=(255, 140, 120, 160))
     return img
 
 
 def make_obelisk() -> Image.Image:
-    img = make_path().copy()
+    base = make_path()
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    img.paste(base, (0, 0))
     d = ImageDraw.Draw(img)
-    d.polygon([(24, 2), (14, 14), (34, 14)], fill=(120, 130, 145, 255))
-    d.rectangle([16, 14, 32, 42], fill=(90, 98, 110, 255), outline=(60, 66, 75, 255))
-    d.rectangle([21, 20, 27, 34], fill=(90, 210, 255, 200))
-    d.ellipse([21, 16, 27, 22], fill=(180, 240, 255, 230))
+    d.ellipse([16, 46, 48, 58], fill=(40, 50, 40, 100))
+    d.polygon([(32, 2), (18, 18), (46, 18)], fill=(150, 160, 175, 255))
+    d.rectangle([20, 18, 44, 52], fill=(100, 110, 125, 255), outline=(60, 68, 80, 255), width=2)
+    d.rectangle([28, 24, 36, 42], fill=(80, 220, 255, 210))
+    d.ellipse([27, 18, 37, 28], fill=(190, 245, 255, 230))
     return img
 
 
 def make_empty() -> Image.Image:
-    return new_img((6, 8, 10, 255))
+    return noise_layer(1, (10, 14, 16), (18, 24, 28), 0.4)
 
 
-def atlas_row(images: list[Image.Image]) -> Image.Image:
-    w = SIZE * len(images)
-    sheet = Image.new("RGBA", (w, SIZE), (0, 0, 0, 0))
-    for i, im in enumerate(images):
-        sheet.paste(im, (i * SIZE, 0))
-    return sheet
-
-
-def make_button(w: int, h: int, fill, edge) -> Image.Image:
+def button(w, h, fill, edge) -> Image.Image:
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=10, fill=fill, outline=edge, width=2)
-    d.line([(8, 3), (w - 8, 3)], fill=(255, 255, 255, 40), width=2)
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=14, fill=fill, outline=edge, width=3)
+    d.rounded_rectangle([4, 3, w - 5, h // 2], radius=10, fill=(255, 255, 255, 28))
     return img
 
 
-def make_panel(w: int, h: int) -> Image.Image:
+def panel(w, h) -> Image.Image:
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=14, fill=(18, 28, 26, 230), outline=(70, 120, 100, 200), width=2)
-    d.rounded_rectangle([4, 4, w - 5, h - 5], radius=12, outline=(40, 70, 60, 120), width=1)
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=18, fill=(14, 26, 24, 235), outline=(90, 170, 140, 210), width=3)
+    d.rounded_rectangle([6, 6, w - 7, h - 7], radius=14, outline=(40, 80, 65, 140), width=2)
     return img
 
 
-def make_joystick_base() -> Image.Image:
-    s = 160
+def stick_base() -> Image.Image:
+    s = 180
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.ellipse([4, 4, s - 5, s - 5], fill=(16, 28, 24, 160), outline=(120, 180, 150, 120), width=3)
-    d.ellipse([28, 28, s - 29, s - 29], outline=(80, 120, 100, 80), width=2)
+    d.ellipse([2, 2, s - 3, s - 3], fill=(12, 26, 22, 180), outline=(130, 200, 170, 160), width=4)
+    d.ellipse([28, 28, s - 29, s - 29], outline=(70, 120, 100, 100), width=3)
+    d.ellipse([60, 60, s - 61, s - 61], fill=(20, 40, 34, 60))
     return img
 
 
-def make_joystick_knob() -> Image.Image:
-    s = 72
+def stick_knob() -> Image.Image:
+    s = 84
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.ellipse([2, 2, s - 3, s - 3], fill=(200, 230, 210, 230), outline=(255, 255, 255, 120), width=2)
-    d.ellipse([14, 10, 40, 30], fill=(255, 255, 255, 60))
+    d.ellipse([2, 2, s - 3, s - 3], fill=(190, 230, 210, 235), outline=(255, 255, 255, 150), width=3)
+    d.ellipse([16, 12, 48, 36], fill=(255, 255, 255, 70))
+    return img
+
+
+def boot_bg() -> Image.Image:
+    w, h = 720, 1280
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 255))
+    d = ImageDraw.Draw(img)
+    for y in range(h):
+        t = y / (h - 1)
+        # deep moss → teal night
+        col = (
+            int(10 + t * 8),
+            int(36 + (1 - t) * 28),
+            int(28 + t * 22),
+            255,
+        )
+        d.line([(0, y), (w - 1, y)], fill=col)
+    # bioluminescent orbs
+    for cx, cy, r, a in [
+        (360, 420, 220, 45),
+        (180, 900, 140, 30),
+        (540, 780, 120, 28),
+        (360, 200, 90, 35),
+    ]:
+        for rad in range(r, 10, -10):
+            alpha = max(0, a - (r - rad) // 6)
+            d.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], outline=(70, 180, 140, alpha))
+    # ground mist band
+    mist = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    md = ImageDraw.Draw(mist)
+    md.rectangle([0, 980, w, h], fill=(40, 90, 70, 50))
+    mist = mist.filter(ImageFilter.GaussianBlur(28))
+    return Image.alpha_composite(img, mist)
+
+
+def hud_strip() -> Image.Image:
+    img = Image.new("RGBA", (720, 84), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([0, 0, 719, 83], radius=16, fill=(10, 22, 20, 220), outline=(90, 170, 140, 200), width=3)
+    d.rounded_rectangle([6, 6, 713, 77], radius=12, outline=(40, 80, 65, 100), width=1)
+    d.line([(20, 4), (200, 4)], fill=(160, 230, 190, 60), width=2)
     return img
 
 
@@ -241,70 +302,25 @@ def main() -> None:
         "boss.png": make_boss(),
         "obelisk.png": make_obelisk(),
         "empty.png": make_empty(),
-        "water_0.png": make_water_frame(0),
-        "water_1.png": make_water_frame(1),
-        "water_2.png": make_water_frame(2),
-        "water_3.png": make_water_frame(3),
-        "lava_0.png": make_lava_frame(0),
-        "lava_1.png": make_lava_frame(1),
-        "lava_2.png": make_lava_frame(2),
-        "lava_3.png": make_lava_frame(3),
-        "void_0.png": make_void_frame(0),
-        "void_1.png": make_void_frame(1),
-        "void_2.png": make_void_frame(2),
-        "void_3.png": make_void_frame(3),
     }
+    for i in range(4):
+        mapping[f"water_{i}.png"] = make_water(i)
+        mapping[f"lava_{i}.png"] = make_lava(i)
+        mapping[f"void_{i}.png"] = make_void(i)
     for name, im in mapping.items():
         im.save(TILES / name)
-        print("wrote", name)
+        print("tile", name)
 
-    # Atlas for docs/debug (optional)
-    order = [
-        mapping["grass.png"],
-        mapping["path.png"],
-        mapping["wall.png"],
-        mapping["rock.png"],
-        mapping["bridge.png"],
-        mapping["water_0.png"],
-        mapping["lava_0.png"],
-        mapping["void_0.png"],
-        mapping["camp.png"],
-        mapping["exit.png"],
-        mapping["boss.png"],
-        mapping["obelisk.png"],
-    ]
-    atlas_row(order).save(TILES / "atlas_preview.png")
-
-    make_button(256, 64, (32, 58, 48, 240), (120, 200, 150, 220)).save(UI / "btn_normal.png")
-    make_button(256, 64, (48, 90, 70, 250), (180, 240, 190, 230)).save(UI / "btn_hover.png")
-    make_button(256, 64, (22, 40, 34, 240), (70, 110, 90, 200)).save(UI / "btn_pressed.png")
-    make_button(256, 64, (28, 32, 30, 200), (60, 70, 65, 160)).save(UI / "btn_disabled.png")
-    make_panel(512, 512).save(UI / "panel.png")
-    make_joystick_base().save(UI / "stick_base.png")
-    make_joystick_knob().save(UI / "stick_knob.png")
-
-    # HUD strip background
-    hud = Image.new("RGBA", (720, 72), (0, 0, 0, 0))
-    d = ImageDraw.Draw(hud)
-    d.rounded_rectangle([0, 0, 719, 71], radius=12, fill=(12, 22, 20, 210), outline=(70, 130, 105, 180), width=2)
-    hud.save(UI / "hud_strip.png")
-
-    # Soft vignette / boot wash
-    boot = Image.new("RGBA", (720, 1280), (0, 0, 0, 0))
-    bd = ImageDraw.Draw(boot)
-    for y in range(1280):
-        t = y / 1279
-        # deep teal bottom → moss top
-        r = int(8 + t * 10)
-        g = int(28 + (1 - t) * 25)
-        b = int(24 + t * 18)
-        bd.line([(0, y), (719, y)], fill=(r, g, b, 255))
-    # soft radial glow center
-    for rad in range(280, 40, -8):
-        a = max(0, 50 - rad // 8)
-        bd.ellipse([360 - rad, 420 - rad, 360 + rad, 420 + rad], outline=(60, 140, 110, a))
-    boot.save(UI / "boot_bg.png")
-    print("UI chrome written")
+    button(280, 72, (34, 68, 54, 245), (130, 220, 170, 230)).save(UI / "btn_normal.png")
+    button(280, 72, (48, 100, 78, 250), (190, 250, 210, 240)).save(UI / "btn_hover.png")
+    button(280, 72, (22, 44, 34, 245), (70, 120, 95, 200)).save(UI / "btn_pressed.png")
+    button(280, 72, (30, 34, 32, 200), (70, 80, 75, 150)).save(UI / "btn_disabled.png")
+    panel(560, 560).save(UI / "panel.png")
+    stick_base().save(UI / "stick_base.png")
+    stick_knob().save(UI / "stick_knob.png")
+    hud_strip().save(UI / "hud_strip.png")
+    boot_bg().save(UI / "boot_bg.png")
+    print("ui chrome done")
 
 
 if __name__ == "__main__":

@@ -333,7 +333,14 @@ func _refresh() -> void:
 		tags.append("LEGENDARY")
 	var els: Array = enemy.get("elements", [])
 	if not els.is_empty():
-		tags.append(", ".join(PackedStringArray(els)).capitalize())
+		var names: PackedStringArray = []
+		for e in els:
+			var id := str(e)
+			if DataRegistry.elements.has(id):
+				names.append(str(DataRegistry.elements[id].get("name", id)))
+			else:
+				names.append(id.capitalize())
+		tags.append(" · ".join(names))
 	enemy_meta.text = " · ".join(PackedStringArray(tags))
 	player_hp.max_value = float(player.get("max_hp", 1))
 	player_hp.value = float(player.get("hp", 0))

@@ -221,6 +221,7 @@ func _tick_wild_respawns() -> void:
 		if not creature.is_empty():
 			creature["hp"] = int(creature.get("max_hp", 1))
 			creature["statuses"] = []
+			EncounterSystem.apply_random_wild_elements(creature)
 			entry["creature"] = creature
 		_add_live_wild(entry)
 		changed = true
@@ -289,7 +290,8 @@ func _setup_boss_marker() -> void:
 		return
 	if GameState.run.get("bosses_defeated", []).has(region.get("boss_id")):
 		return
-	var boss := EncounterSystem.create_boss(region)
+	var tier := int(GameState.run.get("bosses_defeated", []).size())
+	var boss := EncounterSystem.create_boss(region, tier)
 	if boss.is_empty():
 		return
 	var bc: Vector2i = _map.get("boss", Vector2i(6, 1))
@@ -493,22 +495,29 @@ func _draw_map() -> void:
 		var cpos := origin + wp * TILE + Vector2(0.0, bob)
 		if not view.has_point(cpos):
 			continue
-		map_draw.draw_circle(cpos + Vector2(0, 9), 8.0, Color(0, 0, 0, 0.22))
-		PlaceholderArt.draw_creature(map_draw, wild["creature"], cpos, 12.0)
+		# Soft ground shadow
+		map_draw.draw_ellipse(cpos + Vector2(0, 12), Vector2(14, 6), Color(0, 0, 0, 0.28))
+		PlaceholderArt.draw_creature(map_draw, wild["creature"], cpos, 13.0)
 		var n := str(wild["creature"].get("name", "?"))
-		map_draw.draw_string(name_font, cpos + Vector2(-28, -18), n, HORIZONTAL_ALIGNMENT_LEFT, 56, 12, Color(0.92, 0.98, 0.94, 0.9))
+		var type_txt := _element_label(wild["creature"])
+		map_draw.draw_string(name_font, cpos + Vector2(-30, -20), n, HORIZONTAL_ALIGNMENT_LEFT, 60, 12, Color(0.95, 0.98, 0.94, 0.92))
+		if type_txt != "":
+			map_draw.draw_string(name_font, cpos + Vector2(-30, -8), type_txt, HORIZONTAL_ALIGNMENT_LEFT, 70, 10, _element_color(wild["creature"]))
 
 	# Boss marker
 	if not _boss_marker.is_empty():
 		var bp: Vector2 = _boss_marker["pos"]
 		var bpos := origin + bp * TILE
 		if view.has_point(bpos):
-			map_draw.draw_circle(bpos, 18.0, Color(0.7, 0.1, 0.15, 0.25))
-			PlaceholderArt.draw_creature(map_draw, _boss_marker["creature"], bpos, 16.0)
-			map_draw.draw_string(name_font, bpos + Vector2(-40, -26), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 80, 13, Color(1, 0.78, 0.78, 0.95))
+			map_draw.draw_ellipse(bpos + Vector2(0, 14), Vector2(20, 8), Color(0.5, 0.05, 0.08, 0.35))
+			map_draw.draw_circle(bpos, 20.0, Color(0.7, 0.1, 0.15, 0.18))
+			PlaceholderArt.draw_creature(map_draw, _boss_marker["creature"], bpos, 17.0)
+			map_draw.draw_string(name_font, bpos + Vector2(-42, -28), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 90, 13, Color(1, 0.78, 0.78, 0.95))
+			map_draw.draw_string(name_font, bpos + Vector2(-42, -14), _element_label(_boss_marker["creature"]), HORIZONTAL_ALIGNMENT_LEFT, 90, 11, _element_color(_boss_marker["creature"]))
 
 	# Player: human trainer with companion on shoulder
 	var center := origin + _pos * TILE
+	map_draw.draw_ellipse(center + Vector2(0, 16), Vector2(12, 5), Color(0, 0, 0, 0.3))
 	PlayerAvatar.draw(
 		map_draw,
 		center,
@@ -518,6 +527,28 @@ func _draw_map() -> void:
 		_walk_phase,
 		_moving
 	)
+
+func _element_label(creature: Dictionary) -> String:
+	var els: Array = creature.get("elements", [])
+	if els.is_empty():
+		return ""
+	var names: PackedStringArray = []
+	for e in els:
+		var id := str(e)
+		if DataRegistry.elements.has(id):
+			names.append(str(DataRegistry.elements[id].get("name", id)).capitalize())
+		else:
+			names.append(id.capitalize())
+	return " · ".join(names)
+
+func _element_color(creature: Dictionary) -> Color:
+	var els: Array = creature.get("elements", [])
+	if els.is_empty():
+		return Color(0.8, 0.85, 0.82, 0.85)
+	var id := str(els[0])
+	if DataRegistry.elements.has(id):
+		return Color.html(str(DataRegistry.elements[id].get("color", "#cfcfcf")))
+	return Color(0.8, 0.85, 0.82, 0.9)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("confirm"):

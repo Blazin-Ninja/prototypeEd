@@ -26,6 +26,7 @@ func _ready() -> void:
 	failed += _test_bond_shards()
 	failed += _test_level_up()
 	failed += _test_wild_respawn()
+	failed += _test_wild_elements_and_boss_scaling()
 	failed += _test_graphics_assets()
 	failed += _test_progression_starters()
 	if failed == 0:
@@ -110,6 +111,22 @@ func _test_map_walkable() -> int:
 				has_hazard = true
 	failed += _ok("has bridges", has_bridge)
 	failed += _ok("has hazards", has_hazard)
+	# Land-first floors: hazards should be accents, not the majority of the map.
+	var total := 0
+	var hazard_n := 0
+	var grass_n := 0
+	for y2 in int(map.height):
+		for x2 in int(map.width):
+			var tt: int = map.tiles[y2][x2]
+			if tt == MapGenerator.TILE_WALL:
+				continue
+			total += 1
+			if MapGenerator.is_hazard(tt):
+				hazard_n += 1
+			if tt == MapGenerator.TILE_GRASS or tt == MapGenerator.TILE_PATH:
+				grass_n += 1
+	failed += _ok("hazards are minority", total > 0 and float(hazard_n) / float(total) < 0.28)
+	failed += _ok("mostly land tiles", total > 0 and float(grass_n) / float(total) > 0.45)
 	failed += _ok("has obelisks", map.get("obelisks", []).size() >= 2)
 	var exit_cell: Vector2i = map.get("exit", Vector2i(-1, -1))
 	failed += _ok("has exit hub", exit_cell.x >= 0 and MapGenerator.is_walkable(int(map.tiles[exit_cell.y][exit_cell.x])))
@@ -252,6 +269,42 @@ func _test_wild_respawn() -> int:
 	GameState.migrate_wild_respawns("forest")
 	roster = GameState.get_wild_roster("forest")
 	f += _ok("old dead wilds get respawn timer", roster[0].has("respawn_at"))
+	return f
+
+func _test_wild_elements_and_boss_scaling() -> int:
+	var f := 0
+	var pool := EncounterSystem.wild_element_pool()
+	f += _ok("wild pool has 7 types", pool.size() == 7)
+	f += _ok("normal element exists", DataRegistry.elements.has("normal"))
+	f += _ok("nature displays as Grass", str(DataRegistry.elements["nature"].get("name")) == "Grass")
+	f += _ok("wind displays as Flying", str(DataRegistry.elements["wind"].get("name")) == "Flying")
+	var seen := {}
+	for _i in 40:
+		var w := EncounterSystem.roll_wild("forest", {})
+		for e in w.get("elements", []):
+			seen[str(e)] = true
+		f += _ok("wild has elements", not w.get("elements", []).is_empty())
+		break
+	# Diversity across many rolls
+	seen.clear()
+	for _i in 60:
+		var w2 := EncounterSystem.roll_wild("forest", {})
+		for e2 in w2.get("elements", []):
+			seen[str(e2)] = true
+	f += _ok("wild types vary", seen.size() >= 4)
+	for e3 in seen.keys():
+		f += _ok("rolled type in pool", pool.has(e3))
+		break
+	var region := DataRegistry.get_region("forest")
+	var b0 := EncounterSystem.create_boss(region, 0)
+	var b3 := EncounterSystem.create_boss(region, 3)
+	var hp0 := int(b0.get("max_hp", 1))
+	var hp3 := int(b3.get("max_hp", 1))
+	var atk0 := int(b0.get("stats", {}).get("attack", 1))
+	var atk3 := int(b3.get("stats", {}).get("attack", 1))
+	f += _ok("later boss has more hp", hp3 > hp0)
+	f += _ok("later boss hits harder", atk3 > atk0)
+	f += _ok("boss has elements", not b0.get("elements", []).is_empty())
 	return f
 
 func _test_graphics_assets() -> int:

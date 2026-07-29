@@ -3,8 +3,9 @@
     {"id": "fire", "name": "Fire", "color": "#e85d04"},
     {"id": "water", "name": "Water", "color": "#0077b6"},
     {"id": "earth", "name": "Earth", "color": "#8b5e34"},
-    {"id": "wind", "name": "Wind", "color": "#90e0ef"},
-    {"id": "nature", "name": "Nature", "color": "#2d6a4f"},
+    {"id": "wind", "name": "Flying", "color": "#90e0ef"},
+    {"id": "nature", "name": "Grass", "color": "#2d6a4f"},
+    {"id": "normal", "name": "Normal", "color": "#cfcfcf"},
     {"id": "electric", "name": "Electric", "color": "#ffd60a"},
     {"id": "ice", "name": "Ice", "color": "#ade8f4"},
     {"id": "poison", "name": "Poison", "color": "#7b2cbf"},
@@ -18,6 +19,7 @@
     "earth": {"electric": 2.0, "poison": 2.0, "fire": 2.0, "wind": 0.5, "nature": 0.5, "water": 0.5},
     "wind": {"earth": 2.0, "nature": 2.0, "poison": 2.0, "electric": 0.5, "ice": 0.5, "metal": 0.5},
     "nature": {"water": 2.0, "earth": 2.0, "light": 2.0, "fire": 0.5, "poison": 0.5, "ice": 0.5, "wind": 0.5},
+    "normal": {},
     "electric": {"water": 2.0, "metal": 2.0, "wind": 2.0, "earth": 0.5, "nature": 0.5, "electric": 0.5},
     "ice": {"wind": 2.0, "nature": 2.0, "earth": 2.0, "fire": 0.5, "metal": 0.5, "water": 0.5, "ice": 0.5},
     "poison": {"nature": 2.0, "light": 2.0, "shadow": 0.5, "metal": 0.5, "earth": 0.5, "poison": 0.5},
@@ -25,5 +27,6 @@
     "light": {"shadow": 2.0, "ice": 2.0, "poison": 2.0, "nature": 0.5, "metal": 0.5, "light": 0.5},
     "metal": {"ice": 2.0, "wind": 2.0, "light": 2.0, "fire": 0.5, "electric": 0.5, "earth": 0.5, "metal": 0.5}
   },
-  "max_active": 3
+  "max_active": 3,
+  "wild_roll_pool": ["nature", "fire", "water", "normal", "ice", "wind", "poison"]
 }

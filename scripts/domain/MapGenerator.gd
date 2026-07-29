@@ -22,16 +22,19 @@ static func generate(region: Dictionary) -> Dictionary:
 	w = maxi(w, 24)
 	h = maxi(h, 28)
 	var hazard := _hazard_tile(str(region.get("hazard", "lava")))
-	var tiles: Array = _filled_grid(w, h, hazard)
+	# Land-first: grassy floors with sparse hazard ponds (not a sea of water/lava).
+	var tiles: Array = _filled_grid(w, h, TILE_GRASS)
 	_paint_border(tiles, w, h, TILE_WALL)
 
 	var rooms: Array = _place_rooms(region, w, h)
-	# Carve room interiors as grass clearings (wild habitats).
 	for room in rooms:
 		_fill_rect(tiles, room, TILE_GRASS, w, h)
 
-	# Connect rooms with walkways; cross hazards as bridges.
+	# Connect rooms with land paths first.
 	_connect_rooms(tiles, rooms, w, h, hazard)
+
+	# Sparse decorative hazard ponds between clearings.
+	_scatter_hazard_ponds(tiles, rooms, w, h, hazard)
 
 	# Sprinkle rocks in some grass for cover / winding feel.
 	_scatter_rocks(tiles, rooms, w, h)
@@ -45,10 +48,10 @@ static func generate(region: Dictionary) -> Dictionary:
 
 	# Widen camp / boss pads as path so wilds don't sit on markers.
 	_fill_rect(tiles, {
-		"x": cx - 1, "y": cy - 1, "w": 3, "h": 3
+		"x": cx - 2, "y": cy - 2, "w": 5, "h": 5
 	}, TILE_PATH, w, h)
 	_fill_rect(tiles, {
-		"x": bx - 1, "y": by - 1, "w": 3, "h": 3
+		"x": bx - 2, "y": by - 2, "w": 5, "h": 5
 	}, TILE_PATH, w, h)
 
 	tiles[cy][cx] = TILE_CAMP
@@ -199,8 +202,8 @@ static func _place_rooms(region: Dictionary, w: int, h: int) -> Array:
 	var attempts := 0
 	while rooms.size() < target and attempts < 260:
 		attempts += 1
-		var rw := randi_range(4, 8)
-		var rh := randi_range(4, 7)
+		var rw := randi_range(5, 9)
+		var rh := randi_range(5, 8)
 		var rx := randi_range(2, w - rw - 2)
 		var ry := randi_range(8, h - rh - 8)
 		var candidate := {
@@ -258,17 +261,47 @@ static func _fill_rect(tiles: Array, room: Dictionary, tile: int, w: int, h: int
 			tiles[y][x] = tile
 
 static func _connect_rooms(tiles: Array, rooms: Array, w: int, h: int, hazard: int) -> void:
-	# Chain adjacent rooms in south→north order, plus a few cross-links.
+	# Wider land corridors so floors feel walkable, not bridge-choked.
 	for i in range(rooms.size() - 1):
-		_carve_corridor(tiles, rooms[i], rooms[i + 1], w, h, hazard, 1 if randf() < 0.55 else 2)
-	# Extra side paths for looping exploration.
-	var extras := mini(3, rooms.size() - 2)
+		_carve_corridor(tiles, rooms[i], rooms[i + 1], w, h, hazard, 2 if randf() < 0.7 else 1)
+	var extras := mini(4, rooms.size() - 2)
 	for _i in extras:
 		var a := randi_range(0, rooms.size() - 1)
 		var b := randi_range(0, rooms.size() - 1)
 		if a == b:
 			continue
 		_carve_corridor(tiles, rooms[a], rooms[b], w, h, hazard, 1)
+
+static func _scatter_hazard_ponds(tiles: Array, rooms: Array, w: int, h: int, hazard: int) -> void:
+	## Place a few small lakes/pits away from rooms. Target ~8–16% hazard coverage.
+	var ponds := randi_range(2, 4)
+	var attempts := 0
+	var made := 0
+	while made < ponds and attempts < 40:
+		attempts += 1
+		var cx := randi_range(3, w - 4)
+		var cy := randi_range(3, h - 4)
+		var near_room := false
+		for room in rooms:
+			if absi(cx - int(room.cx)) + absi(cy - int(room.cy)) < 7:
+				near_room = true
+				break
+		if near_room:
+			continue
+		var radius := randi_range(2, 4)
+		for y in range(cy - radius, cy + radius + 1):
+			for x in range(cx - radius, cx + radius + 1):
+				if x <= 1 or y <= 1 or x >= w - 2 or y >= h - 2:
+					continue
+				if absi(x - cx) + absi(y - cy) > radius + (1 if randf() < 0.35 else 0):
+					continue
+				var cur: int = int(tiles[y][x])
+				if cur == TILE_GRASS:
+					tiles[y][x] = hazard
+				elif cur == TILE_PATH and randf() < 0.25:
+					# Occasional bridge crossing through a pond edge.
+					tiles[y][x] = TILE_BRIDGE
+		made += 1
 
 static func _carve_corridor(tiles: Array, a: Dictionary, b: Dictionary, w: int, h: int, hazard: int, width: int) -> void:
 	var x0 := int(a.cx)
