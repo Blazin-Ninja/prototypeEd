@@ -109,12 +109,13 @@ func _test_map_walkable() -> int:
 				has_bridge = true
 			if MapGenerator.is_hazard(t):
 				has_hazard = true
-	failed += _ok("has bridges", has_bridge)
-	failed += _ok("has hazards", has_hazard)
-	# Land-first floors: hazards should be accents, not the majority of the map.
+	failed += _ok("has bridges or hazards", has_bridge or has_hazard)
+	# Path-driven floors: clearings + corridors, not open seas of walkable grass.
 	var total := 0
 	var hazard_n := 0
-	var grass_n := 0
+	var path_n := 0
+	var walk_n := 0
+	var empty_n := 0
 	for y2 in int(map.height):
 		for x2 in int(map.width):
 			var tt: int = map.tiles[y2][x2]
@@ -123,10 +124,16 @@ func _test_map_walkable() -> int:
 			total += 1
 			if MapGenerator.is_hazard(tt):
 				hazard_n += 1
-			if tt == MapGenerator.TILE_GRASS or tt == MapGenerator.TILE_PATH:
-				grass_n += 1
-	failed += _ok("hazards are minority", total > 0 and float(hazard_n) / float(total) < 0.28)
-	failed += _ok("mostly land tiles", total > 0 and float(grass_n) / float(total) > 0.45)
+			if tt == MapGenerator.TILE_PATH or tt == MapGenerator.TILE_BRIDGE:
+				path_n += 1
+			if tt == MapGenerator.TILE_EMPTY:
+				empty_n += 1
+			if MapGenerator.is_walkable(tt):
+				walk_n += 1
+	failed += _ok("hazards are minority", total > 0 and float(hazard_n) / float(total) < 0.22)
+	failed += _ok("has path network", path_n >= 20)
+	failed += _ok("underbrush surrounds paths", empty_n > path_n)
+	failed += _ok("walkable is not the whole map", total > 0 and float(walk_n) / float(total) < 0.72)
 	failed += _ok("has obelisks", map.get("obelisks", []).size() >= 2)
 	var exit_cell: Vector2i = map.get("exit", Vector2i(-1, -1))
 	failed += _ok("has exit hub", exit_cell.x >= 0 and MapGenerator.is_walkable(int(map.tiles[exit_cell.y][exit_cell.x])))

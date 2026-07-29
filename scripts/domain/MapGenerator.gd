@@ -22,18 +22,26 @@ static func generate(region: Dictionary) -> Dictionary:
 	w = maxi(w, 24)
 	h = maxi(h, 28)
 	var hazard := _hazard_tile(str(region.get("hazard", "lava")))
-	# Land-first: grassy floors with sparse hazard ponds (not a sea of water/lava).
-	var tiles: Array = _filled_grid(w, h, TILE_GRASS)
+	# Path-driven: dense underbrush (empty) with grass rooms linked by clear paths.
+	var tiles: Array = _filled_grid(w, h, TILE_EMPTY)
 	_paint_border(tiles, w, h, TILE_WALL)
 
 	var rooms: Array = _place_rooms(region, w, h)
 	for room in rooms:
 		_fill_rect(tiles, room, TILE_GRASS, w, h)
+		# Soft grass skirt around each clearing.
+		_fill_rect(tiles, {
+			"x": int(room.x) - 1,
+			"y": int(room.y) - 1,
+			"w": int(room.w) + 2,
+			"h": int(room.h) + 2
+		}, TILE_GRASS, w, h)
+		_fill_rect(tiles, room, TILE_GRASS, w, h)
 
-	# Connect rooms with land paths first.
+	# Wide path corridors between rooms (main navigation).
 	_connect_rooms(tiles, rooms, w, h, hazard)
 
-	# Sparse decorative hazard ponds between clearings.
+	# Tiny hazard ponds only in underbrush (visual accents, not seas).
 	_scatter_hazard_ponds(tiles, rooms, w, h, hazard)
 
 	# Sprinkle rocks in some grass for cover / winding feel.
@@ -261,45 +269,44 @@ static func _fill_rect(tiles: Array, room: Dictionary, tile: int, w: int, h: int
 			tiles[y][x] = tile
 
 static func _connect_rooms(tiles: Array, rooms: Array, w: int, h: int, hazard: int) -> void:
-	# Wider land corridors so floors feel walkable, not bridge-choked.
+	# Wide path corridors — the main way you travel between clearings.
 	for i in range(rooms.size() - 1):
-		_carve_corridor(tiles, rooms[i], rooms[i + 1], w, h, hazard, 2 if randf() < 0.7 else 1)
-	var extras := mini(4, rooms.size() - 2)
+		_carve_corridor(tiles, rooms[i], rooms[i + 1], w, h, hazard, 2)
+	var extras := mini(3, rooms.size() - 2)
 	for _i in extras:
 		var a := randi_range(0, rooms.size() - 1)
 		var b := randi_range(0, rooms.size() - 1)
 		if a == b:
 			continue
-		_carve_corridor(tiles, rooms[a], rooms[b], w, h, hazard, 1)
+		_carve_corridor(tiles, rooms[a], rooms[b], w, h, hazard, 2 if randf() < 0.5 else 1)
 
 static func _scatter_hazard_ponds(tiles: Array, rooms: Array, w: int, h: int, hazard: int) -> void:
-	## Place a few small lakes/pits away from rooms. Target ~8–16% hazard coverage.
-	var ponds := randi_range(2, 4)
+	## Tiny ponds in underbrush only — accents, not seas.
+	var ponds := randi_range(1, 3)
 	var attempts := 0
 	var made := 0
-	while made < ponds and attempts < 40:
+	while made < ponds and attempts < 50:
 		attempts += 1
 		var cx := randi_range(3, w - 4)
 		var cy := randi_range(3, h - 4)
 		var near_room := false
 		for room in rooms:
-			if absi(cx - int(room.cx)) + absi(cy - int(room.cy)) < 7:
+			if absi(cx - int(room.cx)) + absi(cy - int(room.cy)) < 8:
 				near_room = true
 				break
 		if near_room:
 			continue
-		var radius := randi_range(2, 4)
+		var radius := randi_range(1, 3)
 		for y in range(cy - radius, cy + radius + 1):
 			for x in range(cx - radius, cx + radius + 1):
 				if x <= 1 or y <= 1 or x >= w - 2 or y >= h - 2:
 					continue
-				if absi(x - cx) + absi(y - cy) > radius + (1 if randf() < 0.35 else 0):
+				if absi(x - cx) + absi(y - cy) > radius:
 					continue
 				var cur: int = int(tiles[y][x])
-				if cur == TILE_GRASS:
+				if cur == TILE_EMPTY:
 					tiles[y][x] = hazard
-				elif cur == TILE_PATH and randf() < 0.25:
-					# Occasional bridge crossing through a pond edge.
+				elif cur == TILE_PATH and randf() < 0.2:
 					tiles[y][x] = TILE_BRIDGE
 		made += 1
 
@@ -324,13 +331,13 @@ static func _paint_walk(tiles: Array, x: int, y: int, w: int, h: int, hazard: in
 		return
 	if cur == hazard or is_hazard(cur):
 		tiles[y][x] = TILE_BRIDGE
-	elif cur == TILE_GRASS or cur == TILE_PATH or cur == TILE_BRIDGE:
-		# Keep grass in rooms; corridors over grass become path edges.
-		if cur == TILE_GRASS:
-			tiles[y][x] = TILE_PATH
-		# else leave path/bridge
-	elif cur == TILE_CAMP or cur == TILE_BOSS or cur == TILE_EXIT:
+	elif cur == TILE_CAMP or cur == TILE_BOSS or cur == TILE_EXIT or cur == TILE_OBELISK:
 		pass
+	elif cur == TILE_GRASS:
+		# Keep room interiors grassy; corridor edges become path.
+		tiles[y][x] = TILE_PATH
+	elif cur == TILE_EMPTY or cur == TILE_PATH or cur == TILE_BRIDGE:
+		tiles[y][x] = TILE_PATH
 	else:
 		tiles[y][x] = TILE_PATH
 

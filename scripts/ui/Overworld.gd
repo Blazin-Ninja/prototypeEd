@@ -495,8 +495,8 @@ func _draw_map() -> void:
 		var cpos := origin + wp * TILE + Vector2(0.0, bob)
 		if not view.has_point(cpos):
 			continue
-		# Soft ground shadow
-		map_draw.draw_ellipse(cpos + Vector2(0, 12), Vector2(14, 6), Color(0, 0, 0, 0.28))
+		# Soft ground shadow (draw_circle — CanvasItem has no draw_ellipse in 4.3)
+		map_draw.draw_circle(cpos + Vector2(0, 11), 7.0, Color(0, 0, 0, 0.22))
 		PlaceholderArt.draw_creature(map_draw, wild["creature"], cpos, 13.0)
 		var n := str(wild["creature"].get("name", "?"))
 		var type_txt := _element_label(wild["creature"])
@@ -509,7 +509,7 @@ func _draw_map() -> void:
 		var bp: Vector2 = _boss_marker["pos"]
 		var bpos := origin + bp * TILE
 		if view.has_point(bpos):
-			map_draw.draw_ellipse(bpos + Vector2(0, 14), Vector2(20, 8), Color(0.5, 0.05, 0.08, 0.35))
+			map_draw.draw_circle(bpos + Vector2(0, 13), 10.0, Color(0.45, 0.05, 0.08, 0.3))
 			map_draw.draw_circle(bpos, 20.0, Color(0.7, 0.1, 0.15, 0.18))
 			PlaceholderArt.draw_creature(map_draw, _boss_marker["creature"], bpos, 17.0)
 			map_draw.draw_string(name_font, bpos + Vector2(-42, -28), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 90, 13, Color(1, 0.78, 0.78, 0.95))
@@ -517,7 +517,7 @@ func _draw_map() -> void:
 
 	# Player: human trainer with companion on shoulder
 	var center := origin + _pos * TILE
-	map_draw.draw_ellipse(center + Vector2(0, 16), Vector2(12, 5), Color(0, 0, 0, 0.3))
+	map_draw.draw_circle(center + Vector2(0, 15), 6.0, Color(0, 0, 0, 0.28))
 	PlayerAvatar.draw(
 		map_draw,
 		center,
