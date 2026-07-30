@@ -19,7 +19,13 @@ static func xp_to_next(level: int) -> int:
 	var lv := clampi(level, 1, MAX_LEVEL)
 	return 10 + lv * 8
 
-static func battle_xp_reward(enemy: Dictionary, is_boss: bool) -> int:
+const BOSS_XP_BONUS_PER := 0.05 ## +5% XP per boss already defeated this run.
+
+static func xp_boss_bonus_mult(bosses_defeated: int) -> float:
+	## Stacking run bonus after each boss clear (starts applying on the next fights).
+	return 1.0 + BOSS_XP_BONUS_PER * float(maxi(0, bosses_defeated))
+
+static func battle_xp_reward(enemy: Dictionary, is_boss: bool, bosses_defeated: int = 0) -> int:
 	var base := 8
 	if is_boss:
 		base = 28
@@ -34,12 +40,18 @@ static func battle_xp_reward(enemy: Dictionary, is_boss: bool) -> int:
 	base += clampi(int(enemy.get("max_hp", 20)) / 40, 0, 8)
 	# Deeper floors / higher enemy levels grant a bit more XP.
 	base += clampi(int(enemy.get("level", 1)) / 3, 0, 6)
-	return maxi(1, base)
+	var mult := xp_boss_bonus_mult(bosses_defeated)
+	return maxi(1, int(round(float(base) * mult)))
 
-static func grant_battle_xp(companion: Dictionary, enemy: Dictionary, is_boss: bool) -> Dictionary:
+static func grant_battle_xp(
+	companion: Dictionary,
+	enemy: Dictionary,
+	is_boss: bool,
+	bosses_defeated: int = 0
+) -> Dictionary:
 	## Returns {xp_gained, levels_gained, logs, level, xp, evolved, evolve_log}
 	ensure_fields(companion)
-	var gained := battle_xp_reward(enemy, is_boss)
+	var gained := battle_xp_reward(enemy, is_boss, bosses_defeated)
 	if int(companion.get("level", 1)) >= MAX_LEVEL:
 		var evo_capped := EvolutionSystem.try_evolve(companion)
 		return {

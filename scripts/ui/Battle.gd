@@ -187,9 +187,11 @@ func _creature_offset(is_player_side: bool) -> Vector2:
 		shake += Vector2(sin(_anim_t * 30.0) * 16.0 * miss, 0)
 	return dir * (56.0 * lunge) + shake
 
+const BATTLE_GFX_SCALE := 1.3
+
 func _draw_player_battle() -> void:
 	var mid := player_view.size * 0.5 + _creature_offset(true)
-	var radius := minf(player_view.size.x, player_view.size.y) * 0.42
+	var radius := minf(player_view.size.x, player_view.size.y) * 0.42 * BATTLE_GFX_SCALE
 	player_view.draw_circle(player_view.size * 0.5 + Vector2(0, player_view.size.y * 0.28), radius * 0.85, Color(0, 0, 0, 0.25))
 	if _player_hit > 0.0:
 		player_view.modulate = Color(1.0, 1.0 - _player_hit * 0.35, 1.0 - _player_hit * 0.35, 1)
@@ -199,7 +201,7 @@ func _draw_player_battle() -> void:
 
 func _draw_enemy_battle() -> void:
 	var mid := enemy_view.size * 0.5 + _creature_offset(false)
-	var radius := minf(enemy_view.size.x, enemy_view.size.y) * (0.46 if is_boss else 0.40)
+	var radius := minf(enemy_view.size.x, enemy_view.size.y) * (0.46 if is_boss else 0.40) * BATTLE_GFX_SCALE
 	enemy_view.draw_circle(enemy_view.size * 0.5 + Vector2(0, radius * 0.75), radius * 0.85, Color(0, 0, 0, 0.28))
 	if _enemy_hit > 0.0:
 		enemy_view.modulate = Color(1, 1.0 - _enemy_hit * 0.35, 1.0 - _enemy_hit * 0.35, 1)
@@ -503,7 +505,10 @@ func _do_enemy_action() -> void:
 
 func _victory() -> void:
 	_append("%s was defeated!" % enemy.get("name"))
-	var xp_result: Dictionary = LevelSystem.grant_battle_xp(player, enemy, is_boss)
+	# Bonus uses bosses already cleared — current boss is marked after XP grant.
+	var xp_result: Dictionary = LevelSystem.grant_battle_xp(
+		player, enemy, is_boss, GameState.bosses_defeated_count()
+	)
 	var xp_gained := int(xp_result.get("xp_gained", 0))
 	if xp_gained > 0:
 		_append("%s gained %d XP." % [player.get("name"), xp_gained])

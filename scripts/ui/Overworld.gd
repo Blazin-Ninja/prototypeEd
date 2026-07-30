@@ -1,7 +1,8 @@
 extends Control
 ## Continuous overworld with virtual joystick, visible wilds, and test heal.
 
-const TILE := 56.0
+const TILE := 72.8 ## 56 * 1.3 — larger overworld tiles / props
+const GFX_SCALE := 1.3
 const MOVE_SPEED := 4.2
 const PLAYER_RADIUS := 0.28
 const WILD_RADIUS := 0.35
@@ -678,6 +679,7 @@ func _paint_world(canvas: CanvasItem) -> void:
 	if sz.x < 8.0 or sz.y < 8.0:
 		return
 	var region := GameState.current_region()
+	var biome := str(region.get("id", "forest"))
 	var grass := Color.html(str(region.get("grass_color", "#2d6a4f")))
 	var pathc := Color.html(str(region.get("path_color", "#52796f")))
 	var tiles: Array = _map.tiles
@@ -698,55 +700,55 @@ func _paint_world(canvas: CanvasItem) -> void:
 			if t == MapGenerator.TILE_OBELISK:
 				var ostate: Dictionary = _obelisk_state.get("%d,%d" % [x, y], {})
 				obelisk_tint = EncounterSystem.obelisk_hue_color(str(ostate.get("hue", "cyan")))
-			TileArt.draw_tile(canvas, t, rect, grass, pathc, _ambient_t, obelisk_tint)
+			TileArt.draw_tile(canvas, t, rect, grass, pathc, _ambient_t, obelisk_tint, biome, Vector2i(x, y))
 
 	# Visible wild creatures — large, ringed, labeled so they never blend into tiles.
-	var view := Rect2(Vector2.ZERO, sz).grow(96.0)
+	var view := Rect2(Vector2.ZERO, sz).grow(96.0 * GFX_SCALE)
 	var name_font := AppTheme.body_font()
 	for wild in _wilds:
 		var wp: Vector2 = wild["pos"]
-		var bob := sin(float(wild.get("bob", 0.0))) * 3.0
+		var bob := sin(float(wild.get("bob", 0.0))) * 3.0 * GFX_SCALE
 		var cpos := origin + wp * TILE + Vector2(0.0, bob)
 		if not view.has_point(cpos):
 			continue
 		var ecol := _element_color(wild["creature"])
-		canvas.draw_circle(cpos + Vector2(0, 16), 14.0, Color(0, 0, 0, 0.38))
-		canvas.draw_circle(cpos, 28.0, Color(ecol.r, ecol.g, ecol.b, 0.22))
-		canvas.draw_arc(cpos, 26.0, 0.0, TAU, 36, ecol, 3.0, true)
-		PlaceholderArt.draw_creature(canvas, wild["creature"], cpos, 22.0, float(wild.get("bob", 0.0)))
+		canvas.draw_circle(cpos + Vector2(0, 16 * GFX_SCALE), 14.0 * GFX_SCALE, Color(0, 0, 0, 0.38))
+		canvas.draw_circle(cpos, 28.0 * GFX_SCALE, Color(ecol.r, ecol.g, ecol.b, 0.22))
+		canvas.draw_arc(cpos, 26.0 * GFX_SCALE, 0.0, TAU, 36, ecol, 3.0 * GFX_SCALE, true)
+		PlaceholderArt.draw_creature(canvas, wild["creature"], cpos, 22.0 * GFX_SCALE, float(wild.get("bob", 0.0)))
 		var n := str(wild["creature"].get("name", "?"))
 		var type_txt := _element_label(wild["creature"])
-		canvas.draw_string(name_font, cpos + Vector2(-42, -36), n, HORIZONTAL_ALIGNMENT_LEFT, 90, 14, Color(1, 1, 1, 0.96))
+		canvas.draw_string(name_font, cpos + Vector2(-42 * GFX_SCALE, -36 * GFX_SCALE), n, HORIZONTAL_ALIGNMENT_LEFT, int(90 * GFX_SCALE), int(14 * GFX_SCALE), Color(1, 1, 1, 0.96))
 		if type_txt != "":
-			canvas.draw_string(name_font, cpos + Vector2(-42, -20), type_txt, HORIZONTAL_ALIGNMENT_LEFT, 100, 12, ecol)
+			canvas.draw_string(name_font, cpos + Vector2(-42 * GFX_SCALE, -20 * GFX_SCALE), type_txt, HORIZONTAL_ALIGNMENT_LEFT, int(100 * GFX_SCALE), int(12 * GFX_SCALE), ecol)
 
 	# Boss marker
 	if not _boss_marker.is_empty():
 		var bp: Vector2 = _boss_marker["pos"]
 		var bpos := origin + bp * TILE
 		if view.has_point(bpos):
-			canvas.draw_circle(bpos + Vector2(0, 18), 16.0, Color(0.2, 0.02, 0.04, 0.4))
-			canvas.draw_circle(bpos, 36.0, Color(0.85, 0.15, 0.2, 0.24))
-			canvas.draw_arc(bpos, 34.0, 0.0, TAU, 40, Color(1.0, 0.45, 0.4, 0.9), 3.5, true)
-			PlaceholderArt.draw_creature(canvas, _boss_marker["creature"], bpos, 28.0, _ambient_t)
-			canvas.draw_string(name_font, bpos + Vector2(-56, -46), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, 120, 15, Color(1, 0.82, 0.82, 1))
-			canvas.draw_string(name_font, bpos + Vector2(-56, -28), _element_label(_boss_marker["creature"]), HORIZONTAL_ALIGNMENT_LEFT, 120, 12, _element_color(_boss_marker["creature"]))
+			canvas.draw_circle(bpos + Vector2(0, 18 * GFX_SCALE), 16.0 * GFX_SCALE, Color(0.2, 0.02, 0.04, 0.4))
+			canvas.draw_circle(bpos, 36.0 * GFX_SCALE, Color(0.85, 0.15, 0.2, 0.24))
+			canvas.draw_arc(bpos, 34.0 * GFX_SCALE, 0.0, TAU, 40, Color(1.0, 0.45, 0.4, 0.9), 3.5 * GFX_SCALE, true)
+			PlaceholderArt.draw_creature(canvas, _boss_marker["creature"], bpos, 28.0 * GFX_SCALE, _ambient_t)
+			canvas.draw_string(name_font, bpos + Vector2(-56 * GFX_SCALE, -46 * GFX_SCALE), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, int(120 * GFX_SCALE), int(15 * GFX_SCALE), Color(1, 0.82, 0.82, 1))
+			canvas.draw_string(name_font, bpos + Vector2(-56 * GFX_SCALE, -28 * GFX_SCALE), _element_label(_boss_marker["creature"]), HORIZONTAL_ALIGNMENT_LEFT, int(120 * GFX_SCALE), int(12 * GFX_SCALE), _element_color(_boss_marker["creature"]))
 
 	# Player: human trainer with companion — oversized gold ring so YOU are always visible.
 	var center := origin + _pos * TILE
-	canvas.draw_circle(center + Vector2(0, 22), 13.0, Color(0, 0, 0, 0.42))
-	canvas.draw_circle(center, 32.0, Color(0.98, 0.95, 0.55, 0.18))
-	canvas.draw_arc(center, 30.0, 0.0, TAU, 40, Color(1.0, 0.92, 0.35, 0.95), 3.5, true)
+	canvas.draw_circle(center + Vector2(0, 22 * GFX_SCALE), 13.0 * GFX_SCALE, Color(0, 0, 0, 0.42))
+	canvas.draw_circle(center, 32.0 * GFX_SCALE, Color(0.98, 0.95, 0.55, 0.18))
+	canvas.draw_arc(center, 30.0 * GFX_SCALE, 0.0, TAU, 40, Color(1.0, 0.92, 0.35, 0.95), 3.5 * GFX_SCALE, true)
 	PlayerAvatar.draw(
 		canvas,
 		center,
-		2.05,
+		2.05 * GFX_SCALE,
 		GameState.get_companion(),
 		_facing,
 		_walk_phase,
 		_moving
 	)
-	canvas.draw_string(name_font, center + Vector2(-20, -42), "YOU", HORIZONTAL_ALIGNMENT_LEFT, 50, 14, Color(1, 0.95, 0.55, 0.98))
+	canvas.draw_string(name_font, center + Vector2(-20 * GFX_SCALE, -42 * GFX_SCALE), "YOU", HORIZONTAL_ALIGNMENT_LEFT, int(50 * GFX_SCALE), int(14 * GFX_SCALE), Color(1, 0.95, 0.55, 0.98))
 
 func _element_label(creature: Dictionary) -> String:
 	var els: Array = creature.get("elements", [])
