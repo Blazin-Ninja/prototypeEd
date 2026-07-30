@@ -1,8 +1,8 @@
 extends Control
 ## Continuous overworld with virtual joystick, visible wilds, and test heal.
 
-const TILE := 72.8 ## 56 * 1.3 — larger overworld tiles / props
-const GFX_SCALE := 1.3
+const TILE := 96.0 ## larger terrain presence for ultra tiles
+const GFX_SCALE := 1.35
 const MOVE_SPEED := 4.2
 const PLAYER_RADIUS := 0.28
 const WILD_RADIUS := 0.35

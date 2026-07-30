@@ -1,9 +1,9 @@
 extends RefCounted
 class_name TileArt
-## Overworld tiles with biome props + variant blitting.
+## Ultra terrain tiles — high-res variants + biome props.
 
 const MapGenerator = preload("res://scripts/domain/MapGenerator.gd")
-const TILE_SIZE := 96
+const TILE_SIZE := 256
 
 static var _cache: Dictionary = {}
 
@@ -21,19 +21,19 @@ static func draw_tile(
 	var v := _variant(cell)
 	match tile:
 		MapGenerator.TILE_GRASS:
-			_blit(ci, _pick(["grass", "grass_1", "grass_2"], v), rect, grass_tint)
+			_blit(ci, _pick(["grass", "grass_1", "grass_2", "grass_3"], v), rect, grass_tint)
 			_maybe_blit_prop(ci, rect, biome, cell, true)
 		MapGenerator.TILE_PATH:
-			_blit(ci, _pick(["path", "path_1"], v), rect, path_tint)
-			if biome == "desert" and _prop_seed(cell, 17) % 7 == 0:
-				_blit(ci, _pick(["dune", "dune_1"], v), rect, Color(1, 1, 1, 0.85))
+			_blit(ci, _pick(["path", "path_1", "path_2"], v), rect, path_tint)
+			if biome == "desert" and _prop_seed(cell, 17) % 5 == 0:
+				_blit(ci, _pick(["dune", "dune_1", "dune_2"], v), rect, Color(1, 1, 1, 0.88))
 		MapGenerator.TILE_WALL:
-			_blit(ci, _pick(["cliff", "cliff_1"], v), rect, Color(1, 1, 1, 1))
+			_blit(ci, _pick(["cliff", "cliff_1", "cliff_2"], v), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_ROCK:
-			_blit(ci, _pick(["grass", "grass_1"], v), rect, grass_tint)
-			_blit(ci, "rock", rect, Color(1, 1, 1, 1))
+			_blit(ci, _pick(["grass", "grass_1", "grass_2"], v), rect, grass_tint)
+			_blit(ci, _pick(["rock", "rock_1"], v), rect, Color(1, 1, 1, 1))
 			if _prop_seed(cell, 3) % 2 == 0:
-				_blit(ci, "cliff", rect, Color(1, 1, 1, 0.55))
+				_blit(ci, _pick(["cliff", "cliff_1"], v), rect, Color(1, 1, 1, 0.5))
 		MapGenerator.TILE_BRIDGE:
 			_blit(ci, "bridge", rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_CAMP:
@@ -43,14 +43,14 @@ static func draw_tile(
 		MapGenerator.TILE_BOSS:
 			_blit(ci, "boss", rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_OBELISK:
-			_blit(ci, _pick(["path", "path_1"], v), rect, path_tint)
+			_blit(ci, _pick(["path", "path_1", "path_2"], v), rect, path_tint)
 			_blit(ci, "obelisk", rect, obelisk_tint)
 		MapGenerator.TILE_WATER:
-			_blit(ci, _frame("water", ambient_t, 3.0), rect, Color(1, 1, 1, 1))
+			_blit(ci, _frame("water", ambient_t, 2.6), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_LAVA:
-			_blit(ci, _frame("lava", ambient_t, 4.0), rect, Color(1, 1, 1, 1))
+			_blit(ci, _frame("lava", ambient_t, 3.4), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_VOID:
-			_blit(ci, _frame("void", ambient_t, 2.2), rect, Color(1, 1, 1, 1))
+			_blit(ci, _frame("void", ambient_t, 2.0), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_EMPTY:
 			_blit_empty_biome(ci, rect, grass_tint, biome, cell)
 		_:
@@ -66,16 +66,16 @@ static func _blit_empty_biome(
 	var v := _variant(cell)
 	match biome:
 		"desert":
-			_blit(ci, _pick(["dune", "dune_1"], v), rect, Color(1, 1, 1, 1))
+			_blit(ci, _pick(["dune", "dune_1", "dune_2"], v), rect, Color(1, 1, 1, 1))
 		"frozen_mountains":
-			_blit(ci, _pick(["cliff", "cliff_1"], v), rect, Color(0.85, 0.92, 1.0, 1.0))
+			_blit(ci, _pick(["cliff", "cliff_1", "cliff_2"], v), rect, Color(0.88, 0.94, 1.0, 1.0))
 		"alien_lab", "meteor_hive":
-			_blit(ci, "empty", rect, Color(0.75, 0.55, 0.95, 1.0))
-			if _prop_seed(cell, 9) % 3 == 0:
-				_blit(ci, _pick(["tree", "tree_1", "tree_2"], v), rect, Color(0.7, 0.45, 0.95, 0.75))
+			_blit(ci, "empty", rect, Color(0.78, 0.55, 0.95, 1.0))
+			if _prop_seed(cell, 9) % 2 == 0:
+				_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(0.72, 0.48, 0.95, 0.8))
 		_:
 			_blit(ci, "empty", rect, grass_tint)
-			_blit(ci, _pick(["tree", "tree_1", "tree_2"], v), rect, Color(1, 1, 1, 1))
+			_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 1))
 
 static func _maybe_blit_prop(
 	ci: CanvasItem,
@@ -88,17 +88,17 @@ static func _maybe_blit_prop(
 	var v := _variant(cell)
 	match biome:
 		"desert":
-			if roll < 4:
-				_blit(ci, _pick(["dune", "dune_1"], v), rect, Color(1, 1, 1, 0.9))
+			if roll < 5:
+				_blit(ci, _pick(["dune", "dune_1", "dune_2"], v), rect, Color(1, 1, 1, 0.92))
 		"frozen_mountains":
-			if roll < 3:
-				_blit(ci, _pick(["cliff", "cliff_1"], v), rect, Color(0.9, 0.95, 1.0, 0.7))
+			if roll < 4:
+				_blit(ci, _pick(["cliff", "cliff_1", "cliff_2"], v), rect, Color(0.92, 0.96, 1.0, 0.72))
 		"forest":
-			if on_grass and roll < 3:
-				_blit(ci, _pick(["tree", "tree_1", "tree_2"], v), rect, Color(1, 1, 1, 0.9))
+			if on_grass and roll < 4:
+				_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 0.95))
 		_:
-			if on_grass and roll == 0:
-				_blit(ci, "tree", rect, Color(1, 1, 1, 0.7))
+			if on_grass and roll < 2:
+				_blit(ci, _pick(["tree", "tree_1"], v), rect, Color(1, 1, 1, 0.75))
 
 static func _pick(keys: Array, variant: int) -> String:
 	if keys.is_empty():
@@ -106,7 +106,7 @@ static func _pick(keys: Array, variant: int) -> String:
 	return str(keys[variant % keys.size()])
 
 static func _variant(cell: Vector2i) -> int:
-	return _prop_seed(cell, 91) % 3
+	return _prop_seed(cell, 91) % 4
 
 static func _prop_seed(cell: Vector2i, salt: int) -> int:
 	return absi(cell.x * 73856093 ^ cell.y * 19349663 ^ salt)
