@@ -10,6 +10,11 @@ linux x86_64) is provisioned by the environment update script and installed to `
 Generated files under `.godot/` are gitignored, so a fresh checkout must be imported before running
 anything — the update script runs `godot --headless --path . --import` for this.
 
+**Android APK after each update:** After gameplay/feature updates that ship to the user, bump
+`project.godot` / `export_presets.cfg` version, export a debug APK, commit it under
+`releases/ChimeraBond-<version>-debug.apk`, and include a direct download link in the PR summary
+and final reply (GitHub raw URL on the feature branch).
+
 Key gotchas for this headless cloud VM:
 
 - **Rendering driver:** The project's default renderer is `mobile` (Vulkan), and Vulkan is NOT

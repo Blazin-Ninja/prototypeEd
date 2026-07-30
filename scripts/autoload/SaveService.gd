@@ -9,6 +9,9 @@ func load_account() -> Dictionary:
 	if data.is_empty():
 		data = _default_account()
 		save_account(data)
+	if not data.has("preferred_difficulty"):
+		data["preferred_difficulty"] = "normal"
+		save_account(data)
 	return data
 
 func save_account(data: Dictionary) -> void:
@@ -44,7 +47,8 @@ func _default_account() -> Dictionary:
 		"runs_played": 0,
 		"runs_won": 0,
 		"best_region": 0,
-		"last_run_summary": {}
+		"last_run_summary": {},
+		"preferred_difficulty": "normal"
 	}
 
 func _read(path: String) -> Dictionary:

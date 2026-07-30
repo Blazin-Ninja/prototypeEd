@@ -3,6 +3,8 @@ class_name LevelSystem
 ## In-run companion XP and level-ups from battle victories. No gold.
 
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
+const EvolutionSystem = preload("res://scripts/domain/EvolutionSystem.gd")
+const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 const MAX_LEVEL := 20
 
 static func ensure_fields(companion: Dictionary) -> void:
@@ -17,30 +19,49 @@ static func xp_to_next(level: int) -> int:
 	var lv := clampi(level, 1, MAX_LEVEL)
 	return 10 + lv * 8
 
-static func battle_xp_reward(enemy: Dictionary, is_boss: bool) -> int:
+const BOSS_XP_BONUS_PER := 0.05 ## +5% XP per boss already defeated this run.
+
+static func xp_boss_bonus_mult(bosses_defeated: int) -> float:
+	## Stacking run bonus after each boss clear (starts applying on the next fights).
+	return 1.0 + BOSS_XP_BONUS_PER * float(maxi(0, bosses_defeated))
+
+static func battle_xp_reward(enemy: Dictionary, is_boss: bool, bosses_defeated: int = 0) -> int:
 	var base := 8
 	if is_boss:
 		base = 28
 	elif bool(enemy.get("is_obelisk_guardian", false)):
-		base = 14
+		# Stage 1/2/3: 14 / 18 / 24 — violet is best XP of the chain.
+		var stage := clampi(int(enemy.get("obelisk_stage", 1)), 1, 3)
+		base = 10 + stage * 4
 	elif bool(enemy.get("is_legendary", false)):
 		base = 22
 	elif bool(enemy.get("is_alpha", false)):
 		base = 12
 	base += clampi(int(enemy.get("max_hp", 20)) / 40, 0, 8)
-	return maxi(1, base)
+	# Deeper floors / higher enemy levels grant a bit more XP.
+	base += clampi(int(enemy.get("level", 1)) / 3, 0, 6)
+	var mult := xp_boss_bonus_mult(bosses_defeated)
+	return maxi(1, int(round(float(base) * mult)))
 
-static func grant_battle_xp(companion: Dictionary, enemy: Dictionary, is_boss: bool) -> Dictionary:
-	## Returns {xp_gained, levels_gained, logs: PackedStringArray-like Array, level, xp}
+static func grant_battle_xp(
+	companion: Dictionary,
+	enemy: Dictionary,
+	is_boss: bool,
+	bosses_defeated: int = 0
+) -> Dictionary:
+	## Returns {xp_gained, levels_gained, logs, level, xp, evolved, evolve_log}
 	ensure_fields(companion)
-	var gained := battle_xp_reward(enemy, is_boss)
+	var gained := battle_xp_reward(enemy, is_boss, bosses_defeated)
 	if int(companion.get("level", 1)) >= MAX_LEVEL:
+		var evo_capped := EvolutionSystem.try_evolve(companion)
 		return {
 			"xp_gained": 0,
 			"levels_gained": 0,
 			"logs": [],
 			"level": int(companion.get("level", MAX_LEVEL)),
-			"xp": int(companion.get("xp", 0))
+			"xp": int(companion.get("xp", 0)),
+			"evolved": bool(evo_capped.get("evolved", false)),
+			"evolve_log": str(evo_capped.get("log", ""))
 		}
 	companion["xp"] = int(companion.get("xp", 0)) + gained
 	var levels := 0
@@ -55,12 +76,17 @@ static func grant_battle_xp(companion: Dictionary, enemy: Dictionary, is_boss: b
 	if int(companion.get("level", 1)) >= MAX_LEVEL:
 		companion["xp"] = 0
 	CreatureFactory.apply_stat_cap(companion)
+	var evo := EvolutionSystem.try_evolve(companion)
+	if bool(evo.get("evolved", false)):
+		logs.append(str(evo.get("log", "Evolution!")))
 	return {
 		"xp_gained": gained,
 		"levels_gained": levels,
 		"logs": logs,
 		"level": int(companion.get("level", 1)),
-		"xp": int(companion.get("xp", 0))
+		"xp": int(companion.get("xp", 0)),
+		"evolved": bool(evo.get("evolved", false)),
+		"evolve_log": str(evo.get("log", ""))
 	}
 
 static func _apply_level_bonus(companion: Dictionary) -> void:
@@ -78,3 +104,32 @@ static func _apply_level_bonus(companion: Dictionary) -> void:
 	var cur := int(companion.get("hp", new_max))
 	companion["max_hp"] = new_max
 	companion["hp"] = mini(new_max, cur + hp_gain)
+
+static func encounter_level(
+	region: Dictionary,
+	floor: int,
+	bosses_defeated: int,
+	difficulty: String = "normal"
+) -> int:
+	## Progressing encounter level across region floors (1..20).
+	var region_tier := maxi(0, int(region.get("index", 1)) - 1)
+	var floor_n := clampi(floor, 1, 5)
+	var lvl := 1 + region_tier * 3 + (floor_n - 1) + int(floor(float(maxi(0, bosses_defeated)) * 0.5))
+	lvl += DifficultySystem.encounter_level_offset(difficulty)
+	return clampi(lvl, 1, MAX_LEVEL)
+
+static func apply_encounter_level(creature: Dictionary, level: int) -> void:
+	## Raise a freshly created enemy from Lv1 base up to the encounter level.
+	if creature.is_empty():
+		return
+	ensure_fields(creature)
+	var target := clampi(level, 1, MAX_LEVEL)
+	var current := clampi(int(creature.get("level", 1)), 1, MAX_LEVEL)
+	while current < target:
+		_apply_level_bonus(creature)
+		current += 1
+		creature["level"] = current
+	creature["level"] = target
+	creature["xp"] = 0
+	CreatureFactory.apply_stat_cap(creature)
+	creature["hp"] = int(creature.get("max_hp", creature.get("hp", 1)))

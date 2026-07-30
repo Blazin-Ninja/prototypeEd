@@ -5,9 +5,12 @@ extends Node
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const EncounterSystem = preload("res://scripts/domain/EncounterSystem.gd")
+const EvolutionSystem = preload("res://scripts/domain/EvolutionSystem.gd")
 const CombatSystem = preload("res://scripts/domain/CombatSystem.gd")
 const AbsorptionSystem = preload("res://scripts/domain/AbsorptionSystem.gd")
 const AbilitySystem = preload("res://scripts/domain/AbilitySystem.gd")
+const MutationSystem = preload("res://scripts/domain/MutationSystem.gd")
+const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 const MapGenerator = preload("res://scripts/domain/MapGenerator.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
@@ -25,6 +28,9 @@ func _ready() -> void:
 	failed += _test_obelisks()
 	failed += _test_bond_shards()
 	failed += _test_level_up()
+	failed += _test_bond_retry()
+	failed += _test_difficulty_modes()
+	failed += _test_minimap_fog()
 	failed += _test_wild_respawn()
 	failed += _test_wild_elements_and_boss_scaling()
 	failed += _test_graphics_assets()
@@ -47,7 +53,7 @@ func _test_data_loaded() -> int:
 	var f := 0
 	f += _ok("creatures loaded", DataRegistry.creatures.size() >= 15)
 	f += _ok("abilities loaded", DataRegistry.abilities.size() >= 10)
-	f += _ok("5 starters configured", DataRegistry.starters.size() == 5)
+	f += _ok("6 starters configured", DataRegistry.starters.size() == 6)
 	f += _ok("regions loaded", DataRegistry.regions.size() == 5)
 	return f
 
@@ -91,15 +97,21 @@ func _test_flee_and_initiative() -> int:
 
 func _test_map_walkable() -> int:
 	var region := DataRegistry.get_region("forest")
-	var map := MapGenerator.generate(region)
+	var map := MapGenerator.generate(region, 1)
 	var camp: Vector2i = map.camp
-	var boss: Vector2i = map.boss
 	var tile: int = map.tiles[camp.y][camp.x]
 	var failed := 0
 	failed += _ok("camp walkable", MapGenerator.is_walkable(tile))
 	failed += _ok("camp tile type", tile == MapGenerator.TILE_CAMP)
 	failed += _ok("map is large", int(map.width) >= 30 and int(map.height) >= 40)
-	failed += _ok("boss walkable", MapGenerator.is_walkable(int(map.tiles[boss.y][boss.x])))
+	failed += _ok("floor1 is not boss floor", not bool(map.get("is_boss_floor", true)))
+	var stairs: Vector2i = map.get("stairs_down", Vector2i(-1, -1))
+	failed += _ok("floor1 has stairs down", stairs.x >= 0 and int(map.tiles[stairs.y][stairs.x]) == MapGenerator.TILE_EXIT)
+	var boss_floor := MapGenerator.generate(region, 5)
+	var boss: Vector2i = boss_floor.boss
+	failed += _ok("floor5 is boss floor", bool(boss_floor.get("is_boss_floor", false)))
+	failed += _ok("boss walkable", boss.x >= 0 and MapGenerator.is_walkable(int(boss_floor.tiles[boss.y][boss.x])))
+	failed += _ok("five floors per region", MapGenerator.floors_per_region() == 5)
 	var has_bridge := false
 	var has_hazard := false
 	for y in int(map.height):
@@ -145,16 +157,40 @@ func _test_obelisks() -> int:
 	var cell := Vector2i(3, 4)
 	var f := 0
 	f += _ok("obelisk starts uncleared", not GameState.is_obelisk_cleared("forest", cell))
-	GameState.mark_obelisk_cleared("forest", cell)
-	f += _ok("obelisk marked cleared", GameState.is_obelisk_cleared("forest", cell))
-	var g := EncounterSystem.create_obelisk_guardian("forest")
-	f += _ok("obelisk guardian created", not g.is_empty() and bool(g.get("is_obelisk_guardian", false)))
-	f += _ok("obelisk not full alpha", not bool(g.get("is_alpha", true)))
-	var base := CreatureFactory.create_from_template(str(g.get("template_id")), {})
-	var g_atk := int(g.get("stats", {}).get("attack", 0))
+	var state := GameState.ensure_obelisk_state("forest", cell, "brush_rat")
+	f += _ok("obelisk starts stage 1", int(state.get("stage", 0)) == 1)
+	f += _ok("obelisk starts cyan", str(state.get("hue", "")) == "cyan")
+	f += _ok("obelisk persists template", str(state.get("template_id", "")) == "brush_rat")
+	var adv1 := GameState.advance_obelisk("forest", cell)
+	f += _ok("stage1 win upgrades in place", not bool(adv1.get("cleared", true)) and int(adv1.get("stage", 0)) == 2)
+	f += _ok("stage2 is amber", str(adv1.get("hue", "")) == "amber")
+	f += _ok("still not path after stage1", not GameState.is_obelisk_cleared("forest", cell))
+	var adv2 := GameState.advance_obelisk("forest", cell)
+	f += _ok("stage2 win goes violet", int(adv2.get("stage", 0)) == 3 and str(adv2.get("hue", "")) == "violet")
+	var adv3 := GameState.advance_obelisk("forest", cell)
+	f += _ok("stage3 win clears to path", bool(adv3.get("cleared", false)) and bool(adv3.get("bonus", false)))
+	f += _ok("cleared stays path", GameState.is_obelisk_cleared("forest", cell))
+	# Legacy cleared_obelisks entry with no progress must stay path (no surprise stage-2).
+	var legacy := Vector2i(9, 9)
+	GameState.mark_obelisk_cleared("forest", legacy)
+	f += _ok("legacy cleared is path", GameState.is_obelisk_cleared("forest", legacy))
+	f += _ok("legacy ensure stays empty", GameState.ensure_obelisk_state("forest", legacy, "brush_rat").is_empty())
+	var g1 := EncounterSystem.create_obelisk_guardian("forest", "brush_rat", 1, 0)
+	var g2 := EncounterSystem.create_obelisk_guardian("forest", "brush_rat", 2, 0)
+	var g3 := EncounterSystem.create_obelisk_guardian("forest", "brush_rat", 3, 0)
+	f += _ok("obelisk guardian created", not g1.is_empty() and bool(g1.get("is_obelisk_guardian", false)))
+	f += _ok("obelisk not full alpha", not bool(g1.get("is_alpha", true)))
+	f += _ok("stage hues set", str(g1.get("obelisk_hue")) == "cyan" and str(g3.get("obelisk_hue")) == "violet")
+	var base := CreatureFactory.create_from_template("brush_rat", {})
+	var g1_atk := int(g1.get("stats", {}).get("attack", 0))
+	var g2_atk := int(g2.get("stats", {}).get("attack", 0))
+	var g3_atk := int(g3.get("stats", {}).get("attack", 0))
 	var base_atk := int(base.get("stats", {}).get("attack", 1))
-	f += _ok("obelisk stronger than base", g_atk > base_atk)
-	f += _ok("obelisk nerfed vs old 1.82x", g_atk < int(round(float(base_atk) * 1.7)))
+	f += _ok("stage1 stronger than base", g1_atk > base_atk)
+	f += _ok("stage2 stronger than stage1", g2_atk > g1_atk)
+	f += _ok("stage3 stronger than stage2", g3_atk > g2_atk)
+	f += _ok("stage1 near 1.22x", g1_atk == int(round(float(base_atk) * 1.22)))
+	f += _ok("stage3 near 1.60x", g3_atk == int(round(float(base_atk) * 1.60)))
 	# Wild roster persistence
 	GameState.set_wild_roster("forest", [{
 		"instance_id": "w1",
@@ -244,8 +280,121 @@ func _test_level_up() -> int:
 	f += _ok("level raises attack", int(pup.get("stats", {}).get("attack", 0)) > before_atk)
 	f += _ok("level raises max hp", int(pup.get("max_hp", 0)) > before_hp)
 	f += _ok("boss xp > wild xp", LevelSystem.battle_xp_reward(enemy, true) > LevelSystem.battle_xp_reward(enemy, false))
-	var ob := EncounterSystem.create_obelisk_guardian("forest", "brush_rat")
-	f += _ok("obelisk xp > wild xp", LevelSystem.battle_xp_reward(ob, false) > LevelSystem.battle_xp_reward(enemy, false))
+	var ob1 := EncounterSystem.create_obelisk_guardian("forest", "brush_rat", 1, 0)
+	var ob3 := EncounterSystem.create_obelisk_guardian("forest", "brush_rat", 3, 0)
+	f += _ok("obelisk xp > wild xp", LevelSystem.battle_xp_reward(ob1, false) > LevelSystem.battle_xp_reward(enemy, false))
+	f += _ok("stage3 obelisk xp > stage1", LevelSystem.battle_xp_reward(ob3, false) > LevelSystem.battle_xp_reward(ob1, false))
+	# +5% XP per boss already defeated (stacks)
+	var base_xp := LevelSystem.battle_xp_reward(enemy, false, 0)
+	var xp1 := LevelSystem.battle_xp_reward(enemy, false, 1)
+	var xp2 := LevelSystem.battle_xp_reward(enemy, false, 2)
+	f += _ok("0 bosses keeps base xp", base_xp == LevelSystem.battle_xp_reward(enemy, false))
+	f += _ok("1 boss adds ~5% xp", xp1 == maxi(1, int(round(float(base_xp) * 1.05))))
+	f += _ok("2 bosses add ~10% xp", xp2 == maxi(1, int(round(float(base_xp) * 1.10))))
+	f += _ok("boss fight xp uses prior clears only", LevelSystem.battle_xp_reward(enemy, true, 0) == LevelSystem.battle_xp_reward(enemy, true))
+	# Basilisk evolves at Lv 8
+	var basilisk := CreatureFactory.create_from_template("basilisk", {"is_player": true})
+	LevelSystem.ensure_fields(basilisk)
+	f += _ok("basilisk template loads", not basilisk.is_empty())
+	f += _ok("basilisk has evolves_to", str(DataRegistry.get_creature("basilisk").get("evolves_to", "")) == "dread_basilisk")
+	basilisk["level"] = 7
+	var evo_early := EvolutionSystem.try_evolve(basilisk)
+	f += _ok("basilisk does not evolve early", not bool(evo_early.get("evolved", true)))
+	basilisk["level"] = 8
+	var evo := EvolutionSystem.try_evolve(basilisk)
+	f += _ok("basilisk evolves at 8", bool(evo.get("evolved", false)))
+	f += _ok("becomes dread basilisk", str(basilisk.get("template_id", "")) == "dread_basilisk")
+	f += _ok("keeps level after evo", int(basilisk.get("level", 0)) == 8)
+	# Encounter levels progress by floor
+	var forest := DataRegistry.get_region("forest")
+	f += _ok("floor1 encounter level", LevelSystem.encounter_level(forest, 1, 0) == 1)
+	f += _ok("floor5 encounter level higher", LevelSystem.encounter_level(forest, 5, 0) > LevelSystem.encounter_level(forest, 1, 0))
+	return f
+
+func _test_bond_retry() -> int:
+	var f := 0
+	GameState.start_new_run("basilisk")
+	var companion: Dictionary = GameState.get_companion()
+	MutationSystem.apply_mutation(companion, "scales_green")
+	companion["abilities"] = ["vine_lash", "sting", "toxin_spray"]
+	companion["elements"] = ["poison", "nature"]
+	companion["level"] = 8
+	GameState.set_companion(companion)
+	# Force evolve mid-run then die.
+	var evo := EvolutionSystem.try_evolve(companion)
+	f += _ok("retry setup evolved", bool(evo.get("evolved", false)))
+	GameState.set_companion(companion)
+	var report := GameState.end_run(false)
+	f += _ok("loss report allows retry", bool(report.get("can_retry", false)))
+	f += _ok("pending retry snapshot kept", GameState.has_pending_retry_companion())
+	f += _ok("run cleared after death", GameState.run.is_empty())
+	f += _ok("retry start ok", GameState.start_new_run_from_pending_companion())
+	var again: Dictionary = GameState.get_companion()
+	f += _ok("retry keeps evolved form", str(again.get("template_id", "")) == "dread_basilisk")
+	f += _ok("retry resets to level 1", int(again.get("level", 0)) == 1)
+	f += _ok("retry keeps mutations", (again.get("mutations", []) as Array).has("scales_green"))
+	f += _ok("retry keeps abilities", (again.get("abilities", []) as Array).has("toxin_spray"))
+	f += _ok("retry starts in forest", str(GameState.run.get("region_id", "")) == "forest")
+	f += _ok("retry consumes pending snap", not GameState.has_pending_retry_companion())
+	# Victory should not offer retry.
+	GameState.start_new_run("ember_pup")
+	var win_report := GameState.end_run(true)
+	f += _ok("win has no retry", not bool(win_report.get("can_retry", true)))
+	f += _ok("win clears pending", not GameState.has_pending_retry_companion())
+	return f
+
+func _test_difficulty_modes() -> int:
+	var f := 0
+	var forest := DataRegistry.get_region("forest")
+	var p_easy := EncounterSystem.compute_wild_pressure(forest, 2, 3, "easy")
+	var p_norm := EncounterSystem.compute_wild_pressure(forest, 2, 3, "normal")
+	var p_hard := EncounterSystem.compute_wild_pressure(forest, 2, 3, "hard")
+	f += _ok("easy pressure < normal", p_easy < p_norm)
+	f += _ok("hard pressure > normal", p_hard > p_norm)
+	f += _ok("normal pressure unchanged formula", is_equal_approx(p_norm, 0.7 + 1.0))
+	var lvl_e := LevelSystem.encounter_level(forest, 3, 0, "easy")
+	var lvl_n := LevelSystem.encounter_level(forest, 3, 0, "normal")
+	var lvl_h := LevelSystem.encounter_level(forest, 3, 0, "hard")
+	f += _ok("easy encounter level lower", lvl_e < lvl_n)
+	f += _ok("hard encounter level higher", lvl_h > lvl_n)
+	var base := CreatureFactory.create_from_template("brush_rat", {})
+	var easy_c := CreatureFactory.create_from_template("brush_rat", {})
+	var hard_c := CreatureFactory.create_from_template("brush_rat", {})
+	EncounterSystem.apply_wild_pressure(easy_c, 4.0, "easy")
+	EncounterSystem.apply_wild_pressure(hard_c, 4.0, "hard")
+	f += _ok("easy wild weaker than hard", int(easy_c.get("stats", {}).get("attack", 0)) < int(hard_c.get("stats", {}).get("attack", 0)))
+	f += _ok("easy hp softer", int(easy_c.get("max_hp", 0)) < int(hard_c.get("max_hp", 0)))
+	var b_easy := EncounterSystem.create_boss(forest, 0, 5, "easy")
+	var b_hard := EncounterSystem.create_boss(forest, 0, 5, "hard")
+	f += _ok("easy boss less hp", int(b_easy.get("max_hp", 0)) < int(b_hard.get("max_hp", 0)))
+	GameState.start_new_run("ember_pup", "hard")
+	f += _ok("run stores hard", GameState.get_difficulty() == "hard")
+	f += _ok("hard starts with 1 shard", GameState.get_bond_shards() == 1)
+	GameState.start_new_run("ember_pup", "easy")
+	f += _ok("easy starts with 2 shards", GameState.get_bond_shards() == 2)
+	f += _ok("preferred difficulty saved", GameState.get_preferred_difficulty() == "easy")
+	f += _ok("normalize junk to normal", DifficultySystem.normalize("nonsense") == "normal")
+	f += _ok("base still loads", not base.is_empty())
+	return f
+
+func _test_minimap_fog() -> int:
+	var f := 0
+	GameState.start_new_run("ember_pup", "normal")
+	f += _ok("explored maps start empty", GameState.get_explored_cells().is_empty())
+	f += _ok("cell starts fogged", not GameState.is_cell_explored(Vector2i(8, 42)))
+	var changed := GameState.reveal_exploration_around(Vector2(8.5, 42.5), 2)
+	f += _ok("reveal marks cells", changed and GameState.is_cell_explored(Vector2i(8, 42)))
+	f += _ok("reveal covers radius", GameState.is_cell_explored(Vector2i(10, 42)))
+	f += _ok("outside radius stays fogged", not GameState.is_cell_explored(Vector2i(20, 20)))
+	var again := GameState.reveal_exploration_around(Vector2(8.5, 42.5), 2)
+	f += _ok("repeat reveal no change", not again)
+	# Floor keys are separate.
+	GameState.run["region_floor"] = 2
+	f += _ok("other floor fogged", GameState.get_explored_cells().is_empty())
+	GameState.reveal_exploration_around(Vector2(3.2, 4.1), 1)
+	f += _ok("floor2 explores independently", GameState.is_cell_explored(Vector2i(3, 4)))
+	GameState.run["region_floor"] = 1
+	f += _ok("floor1 still remembered", GameState.is_cell_explored(Vector2i(8, 42)))
 	return f
 
 func _test_wild_respawn() -> int:
@@ -312,6 +461,29 @@ func _test_wild_elements_and_boss_scaling() -> int:
 	f += _ok("later boss has more hp", hp3 > hp0)
 	f += _ok("later boss hits harder", atk3 > atk0)
 	f += _ok("boss has elements", not b0.get("elements", []).is_empty())
+	# Hybrid wild pressure: region floor + 0.35 * bosses_defeated
+	var forest := DataRegistry.get_region("forest")
+	var hive := DataRegistry.get_region("meteor_hive")
+	f += _ok("forest pressure floor 0", is_equal_approx(EncounterSystem.compute_wild_pressure(forest, 0, 1), 0.0))
+	f += _ok("hive pressure floor 4", is_equal_approx(EncounterSystem.compute_wild_pressure(hive, 0, 1), 4.0))
+	f += _ok("forest+2 bosses pressure 0.7", is_equal_approx(EncounterSystem.compute_wild_pressure(forest, 2, 1), 0.7))
+	f += _ok("deeper floor raises pressure", EncounterSystem.compute_wild_pressure(forest, 0, 5) > EncounterSystem.compute_wild_pressure(forest, 0, 1))
+	f += _ok("pressure clamps to 8", is_equal_approx(EncounterSystem.compute_wild_pressure(hive, 20, 5), 8.0))
+	var base_rat := CreatureFactory.create_from_template("brush_rat", {})
+	var wild0 := CreatureFactory.create_from_template("brush_rat", {})
+	EncounterSystem.apply_wild_pressure(wild0, 0.0)
+	var wild4 := CreatureFactory.create_from_template("brush_rat", {})
+	EncounterSystem.apply_wild_pressure(wild4, 4.0)
+	f += _ok("pressure0 keeps base atk", int(wild0.get("stats", {}).get("attack", 0)) == int(base_rat.get("stats", {}).get("attack", 1)))
+	f += _ok("pressure4 raises atk", int(wild4.get("stats", {}).get("attack", 0)) > int(base_rat.get("stats", {}).get("attack", 1)))
+	f += _ok("pressure4 raises hp harder", int(wild4.get("max_hp", 0)) > int(wild0.get("max_hp", 0)))
+	# Re-apply does not stack
+	var atk_before := int(wild4.get("stats", {}).get("attack", 0))
+	EncounterSystem.apply_wild_pressure(wild4, 4.0)
+	f += _ok("reapply pressure does not stack", int(wild4.get("stats", {}).get("attack", 0)) == atk_before)
+	# Obelisk mult sits on regional wild base
+	var g_press := EncounterSystem.create_obelisk_guardian("meteor_hive", "brush_rat", 1, 0)
+	f += _ok("obelisk uses regional wild base", int(g_press.get("stats", {}).get("attack", 0)) > int(round(float(base_rat.get("stats", {}).get("attack", 1)) * 1.22)))
 	return f
 
 func _test_graphics_assets() -> int:
@@ -330,4 +502,10 @@ func _test_graphics_assets() -> int:
 func _test_progression_starters() -> int:
 	var account := SaveService.load_account()
 	var starters := ProgressionSystem.available_starters(account)
-	return _ok("at least 2 starters unlocked by default", starters.size() >= 2) + _ok("ember available", starters.has("ember_pup"))
+	var f := 0
+	f += _ok("at least 2 starters unlocked by default", starters.size() >= 2)
+	f += _ok("ember available", starters.has("ember_pup"))
+	f += _ok("basilisk available", starters.has("basilisk"))
+	f += _ok("basilisk sprite present", ResourceLoader.exists("res://assets/creatures/basilisk.png"))
+	f += _ok("dread basilisk sprite present", ResourceLoader.exists("res://assets/creatures/dread_basilisk.png"))
+	return f

@@ -51,6 +51,15 @@
       "default_owned": false
     },
     {
+      "id": "starter_basilisk",
+      "name": "Unlock Basilisk",
+      "description": "Add Basilisk to starter selection. Evolves into Dread Basilisk at Lv 8.",
+      "cost": 4,
+      "type": "starter",
+      "payload": {"starter_id": "basilisk"},
+      "default_owned": true
+    },
+    {
       "id": "alpha_rate_1",
       "name": "Alpha Sense I",
       "description": "Increase Alpha spawn chance (+1%).",
