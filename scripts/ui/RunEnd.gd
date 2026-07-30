@@ -5,6 +5,8 @@ const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 @onready var title: Label = $Safe/VBox/Title
 @onready var body: Label = $Safe/VBox/Body
 @onready var eddie: Label = $Safe/VBox/EddieLine
+@onready var retry_btn: Button = $Safe/VBox/RetryBtn
+@onready var menu_btn: Button = $Safe/VBox/MenuBtn
 
 func _ready() -> void:
 	AppTheme.apply_to(self)
@@ -12,13 +14,19 @@ func _ready() -> void:
 	if report.is_empty():
 		report = GameState.account.get("last_run_summary", {})
 	var won := bool(report.get("won", false))
-	title.text = "VICTORY" if won else "GAME OVER"
+	var can_retry := not won and (
+		bool(report.get("can_retry", false)) or GameState.has_pending_retry_companion()
+	)
+	title.text = "VICTORY" if won else "BOND LOST"
 	AppTheme.style_title(title, 40)
 	title.modulate = Color(0.7, 0.95, 0.75) if won else Color(0.95, 0.55, 0.55)
 	eddie.visible = not won
 	eddie.text = "Do better than Eddie did."
+	var loss_blurb := "Your companion reached zero HP.\nThe bond is broken — but the DNA remains."
+	if can_retry:
+		loss_blurb += "\nStart a new run with the same companion, or return to the menu."
 	body.text = "%s\n\nCompanion: %s\nBattles won: %d\nAbsorptions: %d\nRegions cleared: %s\n\nEvolution Tokens earned: +%d\nTotal tokens: %d" % [
-		"The hive falls. Humanity endures — for now." if won else "Your companion reached zero HP.\nThe run ends. No reloads.",
+		"The hive falls. Humanity endures — for now." if won else loss_blurb,
 		report.get("companion_name", "?"),
 		int(report.get("battles_won", 0)),
 		int(report.get("absorptions", 0)),
@@ -26,4 +34,20 @@ func _ready() -> void:
 		int(report.get("tokens", 0)),
 		int(GameState.account.get("evolution_tokens", 0))
 	]
-	$Safe/VBox/MenuBtn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn"))
+	retry_btn.visible = can_retry
+	if can_retry:
+		var cname := str(report.get("companion_name", "Companion"))
+		retry_btn.text = "New Run — Same Companion (%s)" % cname
+	retry_btn.pressed.connect(_on_retry)
+	menu_btn.pressed.connect(_on_menu)
+
+func _on_retry() -> void:
+	if not GameState.start_new_run_from_pending_companion():
+		GameState.clear_pending_retry_companion()
+		get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn")
+		return
+	get_tree().change_scene_to_file("res://scenes/overworld/Overworld.tscn")
+
+func _on_menu() -> void:
+	GameState.clear_pending_retry_companion()
+	get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn")

@@ -13,6 +13,7 @@ var pending_battle: Dictionary = {}
 var pending_absorb: Dictionary = {}
 var last_absorb_results: Array = []
 var last_run_report: Dictionary = {}
+var pending_retry_companion: Dictionary = {} ## Bond DNA snapshot after a loss, for retry.
 
 func _ready() -> void:
 	account = SaveService.load_account()
@@ -48,8 +49,32 @@ func continue_run() -> bool:
 	return true
 
 func start_new_run(starter_id: String) -> void:
+	pending_retry_companion = {}
 	var companion := CreatureFactory.create_from_template(starter_id, {"is_player": true})
 	ProgressionSystem.apply_starting_passives(companion, account)
+	_begin_run_with_companion(starter_id, companion)
+
+func start_new_run_from_pending_companion() -> bool:
+	## Death retry: same companion DNA, fresh run at Lv 1.
+	if pending_retry_companion.is_empty():
+		return false
+	var snap: Dictionary = pending_retry_companion.duplicate(true)
+	pending_retry_companion = {}
+	var companion := CreatureFactory.create_retry_companion(snap)
+	if companion.is_empty():
+		return false
+	ProgressionSystem.apply_starting_passives(companion, account)
+	var starter_id := str(companion.get("template_id", snap.get("template_id", "ember_pup")))
+	_begin_run_with_companion(starter_id, companion)
+	return true
+
+func clear_pending_retry_companion() -> void:
+	pending_retry_companion = {}
+
+func has_pending_retry_companion() -> bool:
+	return not pending_retry_companion.is_empty()
+
+func _begin_run_with_companion(starter_id: String, companion: Dictionary) -> void:
 	var forest := DataRegistry.get_region("forest")
 	var start: Dictionary = forest.get("start_cell", {"x": 8, "y": 42})
 	run = {
@@ -227,17 +252,32 @@ func mark_boss_defeated(boss_id: String) -> void:
 	autosave()
 
 func end_run(won: bool) -> Dictionary:
+	var companion: Dictionary = get_companion()
 	var tokens := ProgressionSystem.grant_tokens(account, run, won)
 	SaveService.save_account(account)
+	# On loss, keep bond DNA so the player can retry with the same companion.
+	if won:
+		pending_retry_companion = {}
+	else:
+		pending_retry_companion = CreatureFactory.snapshot_for_retry(companion)
 	last_run_report = {
 		"won": won,
 		"tokens": tokens,
 		"battles_won": run.get("battles_won", 0),
 		"absorptions": run.get("absorptions", 0),
 		"regions_cleared": run.get("regions_cleared", []),
-		"companion_name": get_companion().get("name", "?")
+		"companion_name": companion.get("name", "?"),
+		"companion_template_id": str(companion.get("template_id", "")),
+		"can_retry": not won and not pending_retry_companion.is_empty()
 	}
-	account["last_run_summary"] = last_run_report
+	account["last_run_summary"] = {
+		"won": won,
+		"tokens": tokens,
+		"battles_won": last_run_report.get("battles_won", 0),
+		"absorptions": last_run_report.get("absorptions", 0),
+		"regions_cleared": last_run_report.get("regions_cleared", []),
+		"companion_name": last_run_report.get("companion_name", "?")
+	}
 	if won:
 		account["runs_won"] = int(account.get("runs_won", 0)) + 1
 	var best := 0

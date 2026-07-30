@@ -9,6 +9,7 @@ const EvolutionSystem = preload("res://scripts/domain/EvolutionSystem.gd")
 const CombatSystem = preload("res://scripts/domain/CombatSystem.gd")
 const AbsorptionSystem = preload("res://scripts/domain/AbsorptionSystem.gd")
 const AbilitySystem = preload("res://scripts/domain/AbilitySystem.gd")
+const MutationSystem = preload("res://scripts/domain/MutationSystem.gd")
 const MapGenerator = preload("res://scripts/domain/MapGenerator.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
@@ -26,6 +27,7 @@ func _ready() -> void:
 	failed += _test_obelisks()
 	failed += _test_bond_shards()
 	failed += _test_level_up()
+	failed += _test_bond_retry()
 	failed += _test_wild_respawn()
 	failed += _test_wild_elements_and_boss_scaling()
 	failed += _test_graphics_assets()
@@ -296,6 +298,38 @@ func _test_level_up() -> int:
 	var forest := DataRegistry.get_region("forest")
 	f += _ok("floor1 encounter level", LevelSystem.encounter_level(forest, 1, 0) == 1)
 	f += _ok("floor5 encounter level higher", LevelSystem.encounter_level(forest, 5, 0) > LevelSystem.encounter_level(forest, 1, 0))
+	return f
+
+func _test_bond_retry() -> int:
+	var f := 0
+	GameState.start_new_run("basilisk")
+	var companion: Dictionary = GameState.get_companion()
+	MutationSystem.apply_mutation(companion, "scales_green")
+	companion["abilities"] = ["vine_lash", "sting", "toxin_spray"]
+	companion["elements"] = ["poison", "nature"]
+	companion["level"] = 8
+	GameState.set_companion(companion)
+	# Force evolve mid-run then die.
+	var evo := EvolutionSystem.try_evolve(companion)
+	f += _ok("retry setup evolved", bool(evo.get("evolved", false)))
+	GameState.set_companion(companion)
+	var report := GameState.end_run(false)
+	f += _ok("loss report allows retry", bool(report.get("can_retry", false)))
+	f += _ok("pending retry snapshot kept", GameState.has_pending_retry_companion())
+	f += _ok("run cleared after death", GameState.run.is_empty())
+	f += _ok("retry start ok", GameState.start_new_run_from_pending_companion())
+	var again: Dictionary = GameState.get_companion()
+	f += _ok("retry keeps evolved form", str(again.get("template_id", "")) == "dread_basilisk")
+	f += _ok("retry resets to level 1", int(again.get("level", 0)) == 1)
+	f += _ok("retry keeps mutations", (again.get("mutations", []) as Array).has("scales_green"))
+	f += _ok("retry keeps abilities", (again.get("abilities", []) as Array).has("toxin_spray"))
+	f += _ok("retry starts in forest", str(GameState.run.get("region_id", "")) == "forest")
+	f += _ok("retry consumes pending snap", not GameState.has_pending_retry_companion())
+	# Victory should not offer retry.
+	GameState.start_new_run("ember_pup")
+	var win_report := GameState.end_run(true)
+	f += _ok("win has no retry", not bool(win_report.get("can_retry", true)))
+	f += _ok("win clears pending", not GameState.has_pending_retry_companion())
 	return f
 
 func _test_wild_respawn() -> int:

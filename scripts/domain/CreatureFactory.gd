@@ -67,6 +67,77 @@ static func create_from_template(template_id: String, opts: Dictionary = {}) -> 
 static func snapshot(creature: Dictionary) -> Dictionary:
 	return creature.duplicate(true)
 
+static func snapshot_for_retry(creature: Dictionary) -> Dictionary:
+	## Compact bond identity for a death retry (species DNA, not run power).
+	if creature.is_empty():
+		return {}
+	return {
+		"template_id": str(creature.get("template_id", creature.get("id", ""))),
+		"name": str(creature.get("name", "")),
+		"abilities": (creature.get("abilities", []) as Array).duplicate(),
+		"elements": (creature.get("elements", []) as Array).duplicate(),
+		"families": (creature.get("families", []) as Array).duplicate(),
+		"mutations": (creature.get("mutations", []) as Array).duplicate(),
+		"visual_loadout": (creature.get("visual_loadout", {}) as Dictionary).duplicate(true)
+	}
+
+static func create_retry_companion(snapshot: Dictionary) -> Dictionary:
+	## Fresh Lv 1 companion from a defeated bond: keep DNA, reset power.
+	if snapshot.is_empty():
+		return {}
+	var tid := str(snapshot.get("template_id", ""))
+	if tid == "" or DataRegistry.get_creature(tid).is_empty():
+		return {}
+	var fresh := create_from_template(tid, {"is_player": true})
+	if fresh.is_empty():
+		return {}
+	var template_name := str(DataRegistry.get_creature(tid).get("name", tid))
+	fresh["name"] = template_name
+	# Bonded kit — clamp to game limits.
+	var abilities: Array = []
+	for ab in snapshot.get("abilities", []):
+		var aid := str(ab)
+		if aid != "" and DataRegistry.abilities.has(aid) and not abilities.has(aid):
+			abilities.append(aid)
+	if abilities.is_empty():
+		abilities = (fresh.get("abilities", []) as Array).duplicate()
+	while abilities.size() > DataRegistry.max_abilities:
+		abilities.pop_back()
+	fresh["abilities"] = abilities
+	var elements: Array = []
+	for el in snapshot.get("elements", []):
+		var eid := str(el)
+		if eid != "" and DataRegistry.elements.has(eid) and not elements.has(eid):
+			elements.append(eid)
+	if elements.is_empty():
+		elements = (fresh.get("elements", []) as Array).duplicate()
+	while elements.size() > DataRegistry.max_elements:
+		elements.pop_back()
+	fresh["elements"] = elements
+	var families: Array = []
+	for fam in snapshot.get("families", []):
+		var fid := str(fam)
+		if fid != "" and not families.has(fid):
+			families.append(fid)
+	if not families.is_empty():
+		fresh["families"] = families
+	# Re-apply mutations so passive stat bonuses match the DNA history.
+	fresh["mutations"] = []
+	fresh["visual_loadout"] = {}
+	fresh["passives"] = []
+	for mid in snapshot.get("mutations", []):
+		MutationSystem.apply_mutation(fresh, str(mid))
+	fresh["level"] = 1
+	fresh["xp"] = 0
+	fresh["statuses"] = []
+	fresh["is_alpha"] = false
+	fresh["is_legendary"] = false
+	fresh["is_boss"] = false
+	fresh["is_player"] = true
+	apply_stat_cap(fresh)
+	fresh["hp"] = int(fresh.get("max_hp", 1))
+	return fresh
+
 static func apply_stat_cap(creature: Dictionary) -> void:
 	var caps: Dictionary = DataRegistry.stat_caps
 	var stats: Dictionary = creature.get("stats", {})
