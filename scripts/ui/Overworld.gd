@@ -734,21 +734,20 @@ func _paint_world(canvas: CanvasItem) -> void:
 			canvas.draw_string(name_font, bpos + Vector2(-56 * GFX_SCALE, -46 * GFX_SCALE), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, int(120 * GFX_SCALE), int(15 * GFX_SCALE), Color(1, 0.82, 0.82, 1))
 			canvas.draw_string(name_font, bpos + Vector2(-56 * GFX_SCALE, -28 * GFX_SCALE), _element_label(_boss_marker["creature"]), HORIZONTAL_ALIGNMENT_LEFT, int(120 * GFX_SCALE), int(12 * GFX_SCALE), _element_color(_boss_marker["creature"]))
 
-	# Player: human trainer with companion — oversized gold ring so YOU are always visible.
+	# Player: human trainer with companion — soft gold ring for readability.
 	var center := origin + _pos * TILE
 	canvas.draw_circle(center + Vector2(0, 22 * GFX_SCALE), 13.0 * GFX_SCALE, Color(0, 0, 0, 0.42))
-	canvas.draw_circle(center, 32.0 * GFX_SCALE, Color(0.98, 0.95, 0.55, 0.18))
-	canvas.draw_arc(center, 30.0 * GFX_SCALE, 0.0, TAU, 40, Color(1.0, 0.92, 0.35, 0.95), 3.5 * GFX_SCALE, true)
+	canvas.draw_circle(center, 28.0 * GFX_SCALE, Color(0.98, 0.95, 0.55, 0.12))
+	canvas.draw_arc(center, 26.0 * GFX_SCALE, 0.0, TAU, 40, Color(1.0, 0.92, 0.35, 0.75), 2.8 * GFX_SCALE, true)
 	PlayerAvatar.draw(
 		canvas,
 		center,
-		2.05 * GFX_SCALE,
+		2.15 * GFX_SCALE,
 		GameState.get_companion(),
 		_facing,
 		_walk_phase,
 		_moving
 	)
-	canvas.draw_string(name_font, center + Vector2(-20 * GFX_SCALE, -42 * GFX_SCALE), "YOU", HORIZONTAL_ALIGNMENT_LEFT, int(50 * GFX_SCALE), int(14 * GFX_SCALE), Color(1, 0.95, 0.55, 0.98))
 
 func _element_label(creature: Dictionary) -> String:
 	var els: Array = creature.get("elements", [])

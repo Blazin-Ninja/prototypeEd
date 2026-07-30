@@ -1,12 +1,11 @@
 extends RefCounted
 class_name TileArt
-## Phase B overworld tile textures with region tinting + biome props.
+## Overworld tiles with biome props + variant blitting.
 
 const MapGenerator = preload("res://scripts/domain/MapGenerator.gd")
-const TILE_SIZE := 83 ## ~64 * 1.3 source resolution
+const TILE_SIZE := 96
 
 static var _cache: Dictionary = {}
-static var _anim: Dictionary = {}
 
 static func draw_tile(
 	ci: CanvasItem,
@@ -19,19 +18,19 @@ static func draw_tile(
 	biome: String = "forest",
 	cell: Vector2i = Vector2i.ZERO
 ) -> void:
+	var v := _variant(cell)
 	match tile:
 		MapGenerator.TILE_GRASS:
-			_blit(ci, "grass", rect, grass_tint)
+			_blit(ci, _pick(["grass", "grass_1", "grass_2"], v), rect, grass_tint)
 			_maybe_blit_prop(ci, rect, biome, cell, true)
 		MapGenerator.TILE_PATH:
-			_blit(ci, "path", rect, path_tint)
+			_blit(ci, _pick(["path", "path_1"], v), rect, path_tint)
 			if biome == "desert" and _prop_seed(cell, 17) % 7 == 0:
-				_blit(ci, "dune", rect, Color(1, 1, 1, 0.85))
+				_blit(ci, _pick(["dune", "dune_1"], v), rect, Color(1, 1, 1, 0.85))
 		MapGenerator.TILE_WALL:
-			_blit(ci, "cliff", rect, Color(1, 1, 1, 1))
+			_blit(ci, _pick(["cliff", "cliff_1"], v), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_ROCK:
-			# Rock sits on grass/path base with a small cliff shelf.
-			_blit(ci, "grass", rect, grass_tint)
+			_blit(ci, _pick(["grass", "grass_1"], v), rect, grass_tint)
 			_blit(ci, "rock", rect, Color(1, 1, 1, 1))
 			if _prop_seed(cell, 3) % 2 == 0:
 				_blit(ci, "cliff", rect, Color(1, 1, 1, 0.55))
@@ -44,7 +43,7 @@ static func draw_tile(
 		MapGenerator.TILE_BOSS:
 			_blit(ci, "boss", rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_OBELISK:
-			_blit(ci, "path", rect, path_tint)
+			_blit(ci, _pick(["path", "path_1"], v), rect, path_tint)
 			_blit(ci, "obelisk", rect, obelisk_tint)
 		MapGenerator.TILE_WATER:
 			_blit(ci, _frame("water", ambient_t, 3.0), rect, Color(1, 1, 1, 1))
@@ -64,19 +63,19 @@ static func _blit_empty_biome(
 	biome: String,
 	cell: Vector2i
 ) -> void:
+	var v := _variant(cell)
 	match biome:
 		"desert":
-			_blit(ci, "dune", rect, Color(1, 1, 1, 1))
+			_blit(ci, _pick(["dune", "dune_1"], v), rect, Color(1, 1, 1, 1))
 		"frozen_mountains":
-			_blit(ci, "cliff", rect, Color(0.85, 0.92, 1.0, 1.0))
+			_blit(ci, _pick(["cliff", "cliff_1"], v), rect, Color(0.85, 0.92, 1.0, 1.0))
 		"alien_lab", "meteor_hive":
 			_blit(ci, "empty", rect, Color(0.75, 0.55, 0.95, 1.0))
 			if _prop_seed(cell, 9) % 3 == 0:
-				_blit(ci, "tree", rect, Color(0.7, 0.45, 0.95, 0.75))
+				_blit(ci, _pick(["tree", "tree_1", "tree_2"], v), rect, Color(0.7, 0.45, 0.95, 0.75))
 		_:
-			# Forest / default: dense trees over underbrush.
 			_blit(ci, "empty", rect, grass_tint)
-			_blit(ci, "tree", rect, Color(1, 1, 1, 1))
+			_blit(ci, _pick(["tree", "tree_1", "tree_2"], v), rect, Color(1, 1, 1, 1))
 
 static func _maybe_blit_prop(
 	ci: CanvasItem,
@@ -86,19 +85,28 @@ static func _maybe_blit_prop(
 	on_grass: bool
 ) -> void:
 	var roll := _prop_seed(cell, 41) % 10
+	var v := _variant(cell)
 	match biome:
 		"desert":
 			if roll < 4:
-				_blit(ci, "dune", rect, Color(1, 1, 1, 0.9))
+				_blit(ci, _pick(["dune", "dune_1"], v), rect, Color(1, 1, 1, 0.9))
 		"frozen_mountains":
 			if roll < 3:
-				_blit(ci, "cliff", rect, Color(0.9, 0.95, 1.0, 0.7))
+				_blit(ci, _pick(["cliff", "cliff_1"], v), rect, Color(0.9, 0.95, 1.0, 0.7))
 		"forest":
-			if on_grass and roll < 2:
-				_blit(ci, "tree", rect, Color(1, 1, 1, 0.85))
+			if on_grass and roll < 3:
+				_blit(ci, _pick(["tree", "tree_1", "tree_2"], v), rect, Color(1, 1, 1, 0.9))
 		_:
 			if on_grass and roll == 0:
 				_blit(ci, "tree", rect, Color(1, 1, 1, 0.7))
+
+static func _pick(keys: Array, variant: int) -> String:
+	if keys.is_empty():
+		return "grass"
+	return str(keys[variant % keys.size()])
+
+static func _variant(cell: Vector2i) -> int:
+	return _prop_seed(cell, 91) % 3
 
 static func _prop_seed(cell: Vector2i, salt: int) -> int:
 	return absi(cell.x * 73856093 ^ cell.y * 19349663 ^ salt)
