@@ -325,7 +325,7 @@ func _play_attack_fx(from_player: bool, ability_id: String, hit: bool, critical:
 func _refresh() -> void:
 	LevelSystem.ensure_fields(player)
 	player_name.text = "%s  ·  Lv %d" % [str(player.get("name", "You")), int(player.get("level", 1))]
-	enemy_name.text = str(enemy.get("name", "Enemy"))
+	enemy_name.text = "%s  ·  Lv %d" % [str(enemy.get("name", "Enemy")), int(enemy.get("level", 1))]
 	var tags: Array = []
 	if is_boss:
 		tags.append("BOSS")

@@ -5,6 +5,7 @@ extends Node
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const EncounterSystem = preload("res://scripts/domain/EncounterSystem.gd")
+const EvolutionSystem = preload("res://scripts/domain/EvolutionSystem.gd")
 const CombatSystem = preload("res://scripts/domain/CombatSystem.gd")
 const AbsorptionSystem = preload("res://scripts/domain/AbsorptionSystem.gd")
 const AbilitySystem = preload("res://scripts/domain/AbilitySystem.gd")
@@ -47,7 +48,7 @@ func _test_data_loaded() -> int:
 	var f := 0
 	f += _ok("creatures loaded", DataRegistry.creatures.size() >= 15)
 	f += _ok("abilities loaded", DataRegistry.abilities.size() >= 10)
-	f += _ok("5 starters configured", DataRegistry.starters.size() == 5)
+	f += _ok("6 starters configured", DataRegistry.starters.size() == 6)
 	f += _ok("regions loaded", DataRegistry.regions.size() == 5)
 	return f
 
@@ -91,15 +92,21 @@ func _test_flee_and_initiative() -> int:
 
 func _test_map_walkable() -> int:
 	var region := DataRegistry.get_region("forest")
-	var map := MapGenerator.generate(region)
+	var map := MapGenerator.generate(region, 1)
 	var camp: Vector2i = map.camp
-	var boss: Vector2i = map.boss
 	var tile: int = map.tiles[camp.y][camp.x]
 	var failed := 0
 	failed += _ok("camp walkable", MapGenerator.is_walkable(tile))
 	failed += _ok("camp tile type", tile == MapGenerator.TILE_CAMP)
 	failed += _ok("map is large", int(map.width) >= 30 and int(map.height) >= 40)
-	failed += _ok("boss walkable", MapGenerator.is_walkable(int(map.tiles[boss.y][boss.x])))
+	failed += _ok("floor1 is not boss floor", not bool(map.get("is_boss_floor", true)))
+	var stairs: Vector2i = map.get("stairs_down", Vector2i(-1, -1))
+	failed += _ok("floor1 has stairs down", stairs.x >= 0 and int(map.tiles[stairs.y][stairs.x]) == MapGenerator.TILE_EXIT)
+	var boss_floor := MapGenerator.generate(region, 5)
+	var boss: Vector2i = boss_floor.boss
+	failed += _ok("floor5 is boss floor", bool(boss_floor.get("is_boss_floor", false)))
+	failed += _ok("boss walkable", boss.x >= 0 and MapGenerator.is_walkable(int(boss_floor.tiles[boss.y][boss.x])))
+	failed += _ok("five floors per region", MapGenerator.floors_per_region() == 5)
 	var has_bridge := false
 	var has_hazard := false
 	for y in int(map.height):
@@ -272,6 +279,23 @@ func _test_level_up() -> int:
 	var ob3 := EncounterSystem.create_obelisk_guardian("forest", "brush_rat", 3, 0)
 	f += _ok("obelisk xp > wild xp", LevelSystem.battle_xp_reward(ob1, false) > LevelSystem.battle_xp_reward(enemy, false))
 	f += _ok("stage3 obelisk xp > stage1", LevelSystem.battle_xp_reward(ob3, false) > LevelSystem.battle_xp_reward(ob1, false))
+	# Basilisk evolves at Lv 8
+	var basilisk := CreatureFactory.create_from_template("basilisk", {"is_player": true})
+	LevelSystem.ensure_fields(basilisk)
+	f += _ok("basilisk template loads", not basilisk.is_empty())
+	f += _ok("basilisk has evolves_to", str(DataRegistry.get_creature("basilisk").get("evolves_to", "")) == "dread_basilisk")
+	basilisk["level"] = 7
+	var evo_early := EvolutionSystem.try_evolve(basilisk)
+	f += _ok("basilisk does not evolve early", not bool(evo_early.get("evolved", true)))
+	basilisk["level"] = 8
+	var evo := EvolutionSystem.try_evolve(basilisk)
+	f += _ok("basilisk evolves at 8", bool(evo.get("evolved", false)))
+	f += _ok("becomes dread basilisk", str(basilisk.get("template_id", "")) == "dread_basilisk")
+	f += _ok("keeps level after evo", int(basilisk.get("level", 0)) == 8)
+	# Encounter levels progress by floor
+	var forest := DataRegistry.get_region("forest")
+	f += _ok("floor1 encounter level", LevelSystem.encounter_level(forest, 1, 0) == 1)
+	f += _ok("floor5 encounter level higher", LevelSystem.encounter_level(forest, 5, 0) > LevelSystem.encounter_level(forest, 1, 0))
 	return f
 
 func _test_wild_respawn() -> int:
@@ -341,10 +365,11 @@ func _test_wild_elements_and_boss_scaling() -> int:
 	# Hybrid wild pressure: region floor + 0.35 * bosses_defeated
 	var forest := DataRegistry.get_region("forest")
 	var hive := DataRegistry.get_region("meteor_hive")
-	f += _ok("forest pressure floor 0", is_equal_approx(EncounterSystem.compute_wild_pressure(forest, 0), 0.0))
-	f += _ok("hive pressure floor 4", is_equal_approx(EncounterSystem.compute_wild_pressure(hive, 0), 4.0))
-	f += _ok("forest+2 bosses pressure 0.7", is_equal_approx(EncounterSystem.compute_wild_pressure(forest, 2), 0.7))
-	f += _ok("pressure clamps to 8", is_equal_approx(EncounterSystem.compute_wild_pressure(hive, 20), 8.0))
+	f += _ok("forest pressure floor 0", is_equal_approx(EncounterSystem.compute_wild_pressure(forest, 0, 1), 0.0))
+	f += _ok("hive pressure floor 4", is_equal_approx(EncounterSystem.compute_wild_pressure(hive, 0, 1), 4.0))
+	f += _ok("forest+2 bosses pressure 0.7", is_equal_approx(EncounterSystem.compute_wild_pressure(forest, 2, 1), 0.7))
+	f += _ok("deeper floor raises pressure", EncounterSystem.compute_wild_pressure(forest, 0, 5) > EncounterSystem.compute_wild_pressure(forest, 0, 1))
+	f += _ok("pressure clamps to 8", is_equal_approx(EncounterSystem.compute_wild_pressure(hive, 20, 5), 8.0))
 	var base_rat := CreatureFactory.create_from_template("brush_rat", {})
 	var wild0 := CreatureFactory.create_from_template("brush_rat", {})
 	EncounterSystem.apply_wild_pressure(wild0, 0.0)
@@ -378,4 +403,10 @@ func _test_graphics_assets() -> int:
 func _test_progression_starters() -> int:
 	var account := SaveService.load_account()
 	var starters := ProgressionSystem.available_starters(account)
-	return _ok("at least 2 starters unlocked by default", starters.size() >= 2) + _ok("ember available", starters.has("ember_pup"))
+	var f := 0
+	f += _ok("at least 2 starters unlocked by default", starters.size() >= 2)
+	f += _ok("ember available", starters.has("ember_pup"))
+	f += _ok("basilisk available", starters.has("basilisk"))
+	f += _ok("basilisk sprite present", ResourceLoader.exists("res://assets/creatures/basilisk.png"))
+	f += _ok("dread basilisk sprite present", ResourceLoader.exists("res://assets/creatures/dread_basilisk.png"))
+	return f

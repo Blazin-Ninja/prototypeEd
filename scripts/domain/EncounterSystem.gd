@@ -3,15 +3,27 @@ class_name EncounterSystem
 
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
+const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 
 const WILD_ELEMENT_POOL := ["nature", "fire", "water", "normal", "ice", "wind", "poison"]
 const OBELISK_STAGE_MULTS := [1.22, 1.40, 1.60]
 const OBELISK_STAGE_HUES := ["cyan", "amber", "violet"]
+const FLOORS_PER_REGION := 5
 
-static func roll_wild(region_id: String, account: Dictionary, bosses_defeated: int = 0) -> Dictionary:
+static func floors_per_region() -> int:
+	return FLOORS_PER_REGION
+
+static func roll_wild(
+	region_id: String,
+	account: Dictionary,
+	bosses_defeated: int = 0,
+	floor: int = 1
+) -> Dictionary:
 	var wilds := DataRegistry.get_wilds_for_region(region_id)
 	if wilds.is_empty():
 		return {}
+	# On deep floors, prefer evolved basilisk forms when present in the pool.
+	wilds = _weight_wilds_for_floor(wilds, floor)
 	var total := 0
 	for w in wilds:
 		total += int(w.get("encounter_weight", 1))
@@ -35,17 +47,37 @@ static func roll_wild(region_id: String, account: Dictionary, bosses_defeated: i
 	})
 	apply_random_wild_elements(creature)
 	var region := DataRegistry.get_region(region_id)
-	apply_wild_pressure(creature, compute_wild_pressure(region, bosses_defeated))
+	var lvl := LevelSystem.encounter_level(region, floor, bosses_defeated)
+	LevelSystem.apply_encounter_level(creature, lvl)
+	# Snapshot after level so pressure scales the leveled base without stacking later.
+	creature.erase("unscaled_stats")
+	apply_wild_pressure(creature, compute_wild_pressure(region, bosses_defeated, floor))
 	return creature
+
+static func _weight_wilds_for_floor(wilds: Array, floor: int) -> Array:
+	## Deep floors tilt toward evolved forms (dread_basilisk).
+	var out: Array = []
+	for w in wilds:
+		var entry: Dictionary = (w as Dictionary).duplicate(true)
+		var id := str(entry.get("id", ""))
+		if floor >= 4 and id == "dread_basilisk":
+			entry["encounter_weight"] = int(entry.get("encounter_weight", 1)) + 10
+		elif floor <= 2 and id == "dread_basilisk":
+			entry["encounter_weight"] = maxi(1, int(entry.get("encounter_weight", 1)) - 6)
+		elif floor >= 4 and id == "basilisk":
+			entry["encounter_weight"] = maxi(2, int(entry.get("encounter_weight", 1)) - 4)
+		out.append(entry)
+	return out
 
 static func wild_element_pool() -> Array:
 	return WILD_ELEMENT_POOL.duplicate()
 
-static func compute_wild_pressure(region: Dictionary, bosses_defeated: int) -> float:
-	## Hybrid: region sets the floor; bosses cleared nudge global a bit harder.
+static func compute_wild_pressure(region: Dictionary, bosses_defeated: int, floor: int = 1) -> float:
+	## Hybrid: region sets the floor; deeper dungeon floors + bosses push harder.
 	var region_tier := float(int(region.get("index", 1)) - 1)
+	var floor_tier := 0.5 * float(clampi(floor, 1, FLOORS_PER_REGION) - 1)
 	var global := 0.35 * float(maxi(0, bosses_defeated))
-	return clampf(region_tier + global, 0.0, 8.0)
+	return clampf(region_tier + floor_tier + global, 0.0, 8.0)
 
 static func snapshot_unscaled_stats(creature: Dictionary) -> void:
 	if creature.is_empty():
@@ -72,11 +104,16 @@ static func apply_wild_pressure(creature: Dictionary, pressure: float) -> void:
 	creature["hp"] = int(stats["hp"])
 	creature["wild_pressure"] = p
 
-static func refresh_wild_pressure(creature: Dictionary, region: Dictionary, bosses_defeated: int) -> void:
+static func refresh_wild_pressure(
+	creature: Dictionary,
+	region: Dictionary,
+	bosses_defeated: int,
+	floor: int = 1
+) -> void:
 	## Re-apply current hybrid pressure without stacking (uses unscaled snapshot).
 	if creature.is_empty():
 		return
-	apply_wild_pressure(creature, compute_wild_pressure(region, bosses_defeated))
+	apply_wild_pressure(creature, compute_wild_pressure(region, bosses_defeated, floor))
 
 static func apply_random_wild_elements(creature: Dictionary) -> void:
 	## Grass/Fire/Water/Normal/Ice/Flying/Poison — 1 primary, sometimes a second.
@@ -119,7 +156,8 @@ static func create_obelisk_guardian(
 	region_id: String,
 	template_id: String = "",
 	stage: int = 1,
-	bosses_defeated: int = 0
+	bosses_defeated: int = 0,
+	floor: int = 1
 ) -> Dictionary:
 	## In-place stages on regional wild base: ~1.22 / 1.40 / 1.60 (cyan/amber/violet).
 	var tid := template_id
@@ -137,7 +175,10 @@ static func create_obelisk_guardian(
 	})
 	apply_random_wild_elements(guardian)
 	var region := DataRegistry.get_region(region_id)
-	apply_wild_pressure(guardian, compute_wild_pressure(region, bosses_defeated))
+	var lvl := LevelSystem.encounter_level(region, floor, bosses_defeated)
+	LevelSystem.apply_encounter_level(guardian, lvl)
+	guardian.erase("unscaled_stats")
+	apply_wild_pressure(guardian, compute_wild_pressure(region, bosses_defeated, floor))
 	var stage_mult := obelisk_stage_mult(stage_n)
 	var stats: Dictionary = guardian.get("stats", {})
 	for key in ["hp", "attack", "defense", "special_attack", "special_defense", "speed"]:
@@ -152,7 +193,7 @@ static func create_obelisk_guardian(
 	guardian["obelisk_hue"] = obelisk_stage_hue(stage_n)
 	return guardian
 
-static func create_boss(region: Dictionary, bosses_already_defeated: int = 0) -> Dictionary:
+static func create_boss(region: Dictionary, bosses_already_defeated: int = 0, floor: int = 5) -> Dictionary:
 	var boss_id = region.get("boss_id", null)
 	if boss_id == null:
 		return {}
@@ -161,6 +202,8 @@ static func create_boss(region: Dictionary, bosses_already_defeated: int = 0) ->
 		return {}
 	_scale_boss_for_progress(boss, bosses_already_defeated)
 	_randomize_boss_elements(boss)
+	var lvl := LevelSystem.encounter_level(region, clampi(floor, 1, FLOORS_PER_REGION), bosses_already_defeated)
+	boss["level"] = maxi(lvl, int(boss.get("level", 1)))
 	return boss
 
 static func _scale_boss_for_progress(boss: Dictionary, tier: int) -> void:

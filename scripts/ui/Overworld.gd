@@ -92,10 +92,11 @@ func _test_heal() -> void:
 
 func _load_region() -> void:
 	var region := GameState.current_region()
+	var floor := GameState.current_floor()
 	# Stable floor layout within a run so obelisks stay put after battles.
-	var floor_seed := int(GameState.run.get("seed", 1)) ^ str(region.get("id", "")).hash()
+	var floor_seed := int(GameState.run.get("seed", 1)) ^ str(region.get("id", "")).hash() ^ (floor * 7919)
 	seed(floor_seed)
-	_map = MapGenerator.generate(region)
+	_map = MapGenerator.generate(region, floor)
 	_apply_obelisk_state()
 	_pos = _read_saved_pos()
 	_pos.x = clampf(_pos.x, 1.2, float(_map.width) - 1.2)
@@ -176,17 +177,18 @@ func _spawn_wilds() -> void:
 	_wilds.clear()
 	var region := GameState.current_region()
 	var region_id := str(region.get("id", ""))
+	var floor := GameState.current_floor()
 	if region.get("stub", false):
 		return
-	GameState.migrate_wild_respawns(region_id)
-	var roster: Array = GameState.get_wild_roster(region_id)
+	GameState.migrate_wild_respawns(region_id, floor)
+	var roster: Array = GameState.get_wild_roster(region_id, floor)
 	if roster.is_empty():
 		roster = _build_wild_roster(region)
-		GameState.set_wild_roster(region_id, roster)
+		GameState.set_wild_roster(region_id, roster, floor)
 	else:
 		# Re-apply hybrid pressure so backtracking reflects bosses cleared.
 		_refresh_roster_pressure(roster, region)
-		GameState.set_wild_roster(region_id, roster)
+		GameState.set_wild_roster(region_id, roster, floor)
 	for entry in roster:
 		if not bool(entry.get("alive", true)):
 			continue
@@ -194,6 +196,7 @@ func _spawn_wilds() -> void:
 
 func _refresh_roster_pressure(roster: Array, region: Dictionary) -> void:
 	var bosses := GameState.bosses_defeated_count()
+	var floor := GameState.current_floor()
 	for entry in roster:
 		var creature: Dictionary = entry.get("creature", {})
 		if creature.is_empty():
@@ -203,7 +206,7 @@ func _refresh_roster_pressure(roster: Array, region: Dictionary) -> void:
 		var ratio := 1.0
 		if max_hp > 0:
 			ratio = clampf(float(hp) / float(max_hp), 0.0, 1.0)
-		EncounterSystem.refresh_wild_pressure(creature, region, bosses)
+		EncounterSystem.refresh_wild_pressure(creature, region, bosses, floor)
 		if bool(entry.get("alive", true)):
 			creature["hp"] = maxi(1, int(round(float(creature.get("max_hp", 1)) * ratio)))
 		else:
@@ -251,7 +254,8 @@ func _tick_wild_respawns() -> void:
 	if _map.is_empty() or _busy:
 		return
 	var region_id := str(GameState.run.get("region_id", ""))
-	var roster: Array = GameState.get_wild_roster(region_id)
+	var floor := GameState.current_floor()
+	var roster: Array = GameState.get_wild_roster(region_id, floor)
 	if roster.is_empty():
 		return
 	var now := Time.get_unix_time_from_system()
@@ -276,7 +280,8 @@ func _tick_wild_respawns() -> void:
 			EncounterSystem.refresh_wild_pressure(
 				creature,
 				GameState.current_region(),
-				GameState.bosses_defeated_count()
+				GameState.bosses_defeated_count(),
+				floor
 			)
 			creature["hp"] = int(creature.get("max_hp", 1))
 			entry["creature"] = creature
@@ -284,7 +289,7 @@ func _tick_wild_respawns() -> void:
 		changed = true
 		respawned += 1
 	if changed:
-		GameState.set_wild_roster(region_id, roster)
+		GameState.set_wild_roster(region_id, roster, floor)
 		if respawned > 0 and not region_panel.visible:
 			message.text = "Wild monsters have returned to the area."
 		map_draw.queue_redraw()
@@ -312,7 +317,8 @@ func _build_wild_roster(region: Dictionary) -> Array:
 		var wild := EncounterSystem.roll_wild(
 			str(region.get("id")),
 			GameState.account,
-			GameState.bosses_defeated_count()
+			GameState.bosses_defeated_count(),
+			GameState.current_floor()
 		)
 		if wild.is_empty():
 			continue
@@ -327,7 +333,8 @@ func _build_wild_roster(region: Dictionary) -> Array:
 
 func _persist_wild_positions() -> void:
 	var region_id := str(GameState.run.get("region_id", ""))
-	var roster: Array = GameState.get_wild_roster(region_id)
+	var floor := GameState.current_floor()
+	var roster: Array = GameState.get_wild_roster(region_id, floor)
 	if roster.is_empty():
 		return
 	var by_id := {}
@@ -342,20 +349,24 @@ func _persist_wild_positions() -> void:
 			var p: Vector2 = live["pos"]
 			entry["x"] = p.x
 			entry["y"] = p.y
-	GameState.set_wild_roster(region_id, roster)
+	GameState.set_wild_roster(region_id, roster, floor)
 
 func _setup_boss_marker() -> void:
 	_boss_marker = {}
 	var region := GameState.current_region()
 	if region.get("stub", false) or region.get("boss_id", null) == null:
 		return
+	if not bool(_map.get("is_boss_floor", true)):
+		return
 	if GameState.run.get("bosses_defeated", []).has(region.get("boss_id")):
 		return
 	var tier := int(GameState.run.get("bosses_defeated", []).size())
-	var boss := EncounterSystem.create_boss(region, tier)
+	var boss := EncounterSystem.create_boss(region, tier, GameState.current_floor())
 	if boss.is_empty():
 		return
-	var bc: Vector2i = _map.get("boss", Vector2i(6, 1))
+	var bc: Vector2i = _map.get("boss", Vector2i(-1, -1))
+	if bc.x < 0:
+		return
 	_boss_marker = {
 		"creature": boss,
 		"pos": Vector2(float(bc.x) + 0.5, float(bc.y) + 0.5)
@@ -369,13 +380,15 @@ func _show_intro_once() -> void:
 	message.text = "%s\n%s" % [region.get("name"), region.get("intro", "")]
 	await get_tree().create_timer(1.6).timeout
 	if is_inside_tree():
-		message.text = "Explore the dungeon. Activate obelisks for special fights. Bond Shards heal in battle (costs a turn)."
+		message.text = "Explore 5 dungeon floors. Stairs go deeper; Floor 5 holds the boss. Bond Shards heal in battle (costs a turn)."
 
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
 	var region := GameState.current_region()
-	hud.text = "%s   ·   %s Lv%d   ·   HP %d/%d   ·   Shards %d/%d" % [
+	hud.text = "%s F%d/%d   ·   %s Lv%d   ·   HP %d/%d   ·   Shards %d/%d" % [
 		region.get("name", "?"),
+		GameState.current_floor(),
+		GameState.floors_per_region(),
 		c.get("name", "?"),
 		int(c.get("level", 1)),
 		c.get("hp", 0),
@@ -651,13 +664,54 @@ func _on_enter_tile(tile: int) -> void:
 			_refresh_hud()
 			GameState.autosave()
 		MapGenerator.TILE_EXIT:
-			# Do not auto-open — exit sits near camp and was trapping players
-			# on the path to bridges. Regions button / Interact opens travel.
-			message.text = "Travel hub. Open Regions (or press A) to travel."
+			_handle_exit_tile(_tile_at(_pos))
 		MapGenerator.TILE_OBELISK:
 			_try_activate_obelisk(_tile_at(_pos))
 		_:
 			pass
+
+func _handle_exit_tile(cell: Vector2i) -> void:
+	var stairs_down: Vector2i = _map.get("stairs_down", Vector2i(-1, -1))
+	var stairs_up: Vector2i = _map.get("stairs_up", Vector2i(-1, -1))
+	if cell == stairs_down:
+		message.text = "Stairs deeper. Press A to descend (Floor %d → %d)." % [
+			GameState.current_floor(), mini(GameState.current_floor() + 1, GameState.floors_per_region())
+		]
+	elif cell == stairs_up:
+		message.text = "Stairs upward. Press A to climb (Floor %d → %d)." % [
+			GameState.current_floor(), maxi(GameState.current_floor() - 1, 1)
+		]
+	else:
+		message.text = "Travel hub. Open Regions (or press A) to travel."
+
+func _try_use_stairs(cell: Vector2i) -> bool:
+	if _busy:
+		return false
+	if _tile_type(cell) != MapGenerator.TILE_EXIT:
+		return false
+	var stairs_down: Vector2i = _map.get("stairs_down", Vector2i(-1, -1))
+	var stairs_up: Vector2i = _map.get("stairs_up", Vector2i(-1, -1))
+	if cell == stairs_down:
+		if GameState.advance_floor():
+			message.text = "Descending to Floor %d/%d..." % [
+				GameState.current_floor(), GameState.floors_per_region()
+			]
+			_load_region()
+			_refresh_hud()
+			return true
+		message.text = "This is the deepest floor."
+		return true
+	if cell == stairs_up:
+		if GameState.retreat_floor():
+			message.text = "Climbing to Floor %d/%d..." % [
+				GameState.current_floor(), GameState.floors_per_region()
+			]
+			_load_region()
+			_refresh_hud()
+			return true
+		message.text = "Already on Floor 1 — open Regions to leave."
+		return true
+	return false
 
 func _try_activate_obelisk(cell: Vector2i) -> bool:
 	if _busy:
@@ -677,7 +731,8 @@ func _try_activate_obelisk(cell: Vector2i) -> bool:
 		region_id,
 		template_id,
 		stage,
-		GameState.bosses_defeated_count()
+		GameState.bosses_defeated_count(),
+		GameState.current_floor()
 	)
 	if guardian.is_empty():
 		message.text = "The obelisk stays silent."
@@ -699,6 +754,9 @@ func _on_a() -> void:
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		if _try_activate_obelisk(here + d):
 			return
+	# Stairs before wilds so floor transitions stay reliable.
+	if _try_use_stairs(here):
+		return
 	# Prefer interacting with nearest wild within reach.
 	var nearest_i := -1
 	var nearest_d := 1.1

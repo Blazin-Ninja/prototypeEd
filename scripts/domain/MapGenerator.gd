@@ -16,11 +16,16 @@ const TILE_BRIDGE := 10
 const TILE_ROCK := 11
 const TILE_OBELISK := 12
 
-static func generate(region: Dictionary) -> Dictionary:
+static func floors_per_region() -> int:
+	return 5
+
+static func generate(region: Dictionary, floor: int = 1) -> Dictionary:
 	var w := int(region.get("map_width", 36))
 	var h := int(region.get("map_height", 48))
 	w = maxi(w, 24)
 	h = maxi(h, 28)
+	var floor_n := clampi(floor, 1, floors_per_region())
+	var is_boss_floor := floor_n >= floors_per_region()
 	var hazard := _hazard_tile(str(region.get("hazard", "lava")))
 	# Path-driven: dense underbrush (empty) with grass rooms linked by clear paths.
 	var tiles: Array = _filled_grid(w, h, TILE_EMPTY)
@@ -63,10 +68,18 @@ static func generate(region: Dictionary) -> Dictionary:
 	}, TILE_PATH, w, h)
 
 	tiles[cy][cx] = TILE_CAMP
-	tiles[by][bx] = TILE_BOSS
+	var stairs_down := Vector2i(-1, -1)
+	var stairs_up := Vector2i(-1, -1)
+	var boss_cell := Vector2i(-1, -1)
+	if is_boss_floor:
+		tiles[by][bx] = TILE_BOSS
+		boss_cell = Vector2i(bx, by)
+	else:
+		# Floors 1-4: north marker is stairs deeper into the dungeon.
+		tiles[by][bx] = TILE_EXIT
+		stairs_down = Vector2i(bx, by)
 
-	# Exit near camp but off the main east/west walkway so it doesn't
-	# sit on the bridge path out of camp.
+	# Travel / stairs-up near camp.
 	var ex := cx
 	var ey := mini(cy + 2, h - 2)
 	if int(tiles[ey][ex]) == TILE_WALL or not is_walkable(int(tiles[ey][ex])):
@@ -75,6 +88,8 @@ static func generate(region: Dictionary) -> Dictionary:
 		ex = mini(cx + 2, w - 2)
 		ey = cy
 	tiles[ey][ex] = TILE_EXIT
+	if floor_n > 1:
+		stairs_up = Vector2i(ex, ey)
 	# Keep exit reachable from camp.
 	_ensure_path(tiles, Vector2i(cx, cy), Vector2i(ex, ey), w, h, hazard)
 
@@ -88,8 +103,13 @@ static func generate(region: Dictionary) -> Dictionary:
 		"height": h,
 		"tiles": tiles,
 		"camp": Vector2i(cx, cy),
-		"boss": Vector2i(bx, by),
+		"boss": boss_cell,
 		"exit": Vector2i(ex, ey),
+		"stairs_down": stairs_down,
+		"stairs_up": stairs_up,
+		"floor": floor_n,
+		"floor_count": floors_per_region(),
+		"is_boss_floor": is_boss_floor,
 		"rooms": rooms,
 		"hazard": hazard,
 		"obelisks": obelisks
