@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Creature realism pass — ~83% richer shading/texture/volume vs flat silhouettes.
+"""Creature realism pass v2 — +62% resolution and deeper material shading.
 
-Resolutions: wild 256px (~128 * 1.83+), bosses 320px.
+Resolutions: wild 416px (256*1.62), bosses 512px.
 """
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ BOSSES = ROOT / "bosses"
 CREATURES.mkdir(parents=True, exist_ok=True)
 BOSSES.mkdir(parents=True, exist_ok=True)
 
-SIZE = 256
-BOSS_SIZE = 320
+SIZE = 416
+BOSS_SIZE = 512
 
 ELEMENT_ACCENT = {
     "fire": (232, 93, 4),
@@ -109,11 +109,13 @@ def radial_shade(img: Image.Image, cx, cy, rx, ry, base, light_dir=(-0.45, -0.55
             nz = math.sqrt(max(0.0, 1.0 - min(1.0, d2)))
             ndot = max(0.0, (-nx) * lx + (-ny) * ly + nz * 0.85)
             rim = max(0.0, 1.0 - nz) * 0.35
-            lit = 0.28 + strength * ndot - rim * 0.4
-            # specular
-            spec = (ndot ** 10) * 0.45
-            col = mix(shade(base, -0.35), shade(base, 0.42), lit)
-            col = mix(col, (255, 255, 255), min(0.55, spec))
+            lit = 0.22 + strength * ndot - rim * 0.5
+            # dual-lobe specular + fresnel rim light
+            spec = (ndot ** 12) * 0.38 + (ndot ** 4) * 0.18
+            fresnel = (rim ** 1.4) * 0.22
+            col = mix(shade(base, -0.42), shade(base, 0.48), lit)
+            col = mix(col, (255, 255, 255), min(0.62, spec))
+            col = mix(col, (255, 230, 210), min(0.35, fresnel))
             pix[x, y] = (col[0], col[1], col[2], a)
     return img
 
@@ -144,7 +146,7 @@ def scale_flecks(img: Image.Image, accent, seed=2):
     d = ImageDraw.Draw(img)
     s = img.size[0]
     pix = img.load()
-    for _ in range(int(s * 0.35)):
+    for _ in range(int(s * 0.55)):
         x = rnd.randint(8, s - 9)
         y = rnd.randint(8, s - 9)
         if pix[x, y][3] < 80:
@@ -187,19 +189,72 @@ def ground_shadow(img: Image.Image, s, y_frac=0.82, rx=0.30, ry=0.07):
     )
 
 
+def subsurface_fringe(img: Image.Image, warm=(210, 90, 70), amount=0.22):
+    """Warm rim scatter for skin-like realism along opaque edges."""
+    s = img.size[0]
+    pix = img.load()
+    # copy alpha neighborhood check
+    alpha = [[pix[x, y][3] for x in range(s)] for y in range(s)]
+    for y in range(1, s - 1):
+        for x in range(1, s - 1):
+            a = alpha[y][x]
+            if a < 30:
+                continue
+            edge = 0
+            for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                if alpha[y + dy][x + dx] < 20:
+                    edge += 1
+            if edge == 0:
+                continue
+            r, g, b, aa = pix[x, y]
+            t = min(0.55, amount * edge * 0.35)
+            col = mix((r, g, b), warm, t)
+            pix[x, y] = (col[0], col[1], col[2], aa)
+    return img
+
+
+def micro_ao(img: Image.Image, strength=0.18):
+    """Darken concave/interior pixels slightly using local alpha density."""
+    s = img.size[0]
+    pix = img.load()
+    alpha = [[pix[x, y][3] for x in range(s)] for y in range(s)]
+    for y in range(2, s - 2):
+        for x in range(2, s - 2):
+            a = alpha[y][x]
+            if a < 40:
+                continue
+            dens = 0
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
+                    dens += 1 if alpha[y + dy][x + dx] > 40 else 0
+            # dens high in interior; use inverse for crease near edge-inside
+            if dens < 18 or dens > 24:
+                continue
+            r, g, b, aa = pix[x, y]
+            col = shade((r, g, b), -strength * (1.0 - dens / 25.0))
+            pix[x, y] = (col[0], col[1], col[2], aa)
+    return img
+
+
 def finish(img: Image.Image) -> Image.Image:
-    # slight blur then gentle sharpen for painted realism
-    soft = img.filter(ImageFilter.GaussianBlur(0.55))
+    # Soft silhouette fringe + material polish
+    soft = img.filter(ImageFilter.GaussianBlur(0.85))
     img = Image.alpha_composite(soft, img)
-    # enhance contrast/color a touch
+    subsurface_fringe(img)
+    micro_ao(img)
     rgb = img.convert("RGBA")
-    # Unsharp-ish via detail filter
     detail = rgb.filter(ImageFilter.DETAIL)
-    out = Image.blend(rgb, detail, 0.35)
+    out = Image.blend(rgb, detail, 0.48)
+    # gentle unsharp
+    blur = out.filter(ImageFilter.GaussianBlur(1.1))
+    # manual unsharp: out + (out-blur)*amount — via blend trick
+    out = Image.blend(blur, out, 1.35) if False else out
     enhancer = ImageEnhance.Contrast(out)
-    out = enhancer.enhance(1.12)
+    out = enhancer.enhance(1.18)
     enhancer = ImageEnhance.Color(out)
-    out = enhancer.enhance(1.08)
+    out = enhancer.enhance(1.14)
+    enhancer = ImageEnhance.Sharpness(out)
+    out = enhancer.enhance(1.35)
     return out
 
 
@@ -337,7 +392,7 @@ def make_quad(base, elements, boss=False, seed=1) -> Image.Image:
             rgba(accent, 230),
             0.8,
         )
-    fur_noise(img, c, density=0.018, seed=seed)
+    fur_noise(img, c, density=0.028, seed=seed)
     return finish(img)
 
 
@@ -443,7 +498,7 @@ def make_plant(base, elements, boss=False, seed=1) -> Image.Image:
         (255, 240, 180, 220),
         1.0,
     )
-    fur_noise(img, c, density=0.01, seed=seed)
+    fur_noise(img, c, density=0.018, seed=seed)
     return finish(img)
 
 
@@ -492,7 +547,7 @@ def make_bird(base, elements, boss=False, seed=1) -> Image.Image:
         rgba(accent, 230),
         1.0,
     )
-    fur_noise(img, c, density=0.014, seed=seed)
+    fur_noise(img, c, density=0.024, seed=seed)
     return finish(img)
 
 
@@ -669,7 +724,7 @@ def make_bulk(base, elements, boss=False, seed=1) -> Image.Image:
             rgba(shade(accent, 0.2), 220),
             2.0,
         )
-    fur_noise(img, c, density=0.012, seed=seed)
+    fur_noise(img, c, density=0.02, seed=seed)
     scale_flecks(img, accent, seed=seed + 3)
     return finish(img)
 

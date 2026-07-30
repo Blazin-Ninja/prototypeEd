@@ -715,7 +715,7 @@ func _paint_world(canvas: CanvasItem) -> void:
 		canvas.draw_circle(cpos + Vector2(0, 16 * GFX_SCALE), 14.0 * GFX_SCALE, Color(0, 0, 0, 0.38))
 		canvas.draw_circle(cpos, 28.0 * GFX_SCALE, Color(ecol.r, ecol.g, ecol.b, 0.22))
 		canvas.draw_arc(cpos, 26.0 * GFX_SCALE, 0.0, TAU, 36, ecol, 3.0 * GFX_SCALE, true)
-		PlaceholderArt.draw_creature(canvas, wild["creature"], cpos, 26.0 * GFX_SCALE, float(wild.get("bob", 0.0)))
+		PlaceholderArt.draw_creature(canvas, wild["creature"], cpos, 28.0 * GFX_SCALE, float(wild.get("bob", 0.0)))
 		var n := str(wild["creature"].get("name", "?"))
 		var type_txt := _element_label(wild["creature"])
 		canvas.draw_string(name_font, cpos + Vector2(-42 * GFX_SCALE, -36 * GFX_SCALE), n, HORIZONTAL_ALIGNMENT_LEFT, int(90 * GFX_SCALE), int(14 * GFX_SCALE), Color(1, 1, 1, 0.96))
@@ -730,7 +730,7 @@ func _paint_world(canvas: CanvasItem) -> void:
 			canvas.draw_circle(bpos + Vector2(0, 18 * GFX_SCALE), 16.0 * GFX_SCALE, Color(0.2, 0.02, 0.04, 0.4))
 			canvas.draw_circle(bpos, 36.0 * GFX_SCALE, Color(0.85, 0.15, 0.2, 0.24))
 			canvas.draw_arc(bpos, 34.0 * GFX_SCALE, 0.0, TAU, 40, Color(1.0, 0.45, 0.4, 0.9), 3.5 * GFX_SCALE, true)
-			PlaceholderArt.draw_creature(canvas, _boss_marker["creature"], bpos, 34.0 * GFX_SCALE, _ambient_t)
+			PlaceholderArt.draw_creature(canvas, _boss_marker["creature"], bpos, 38.0 * GFX_SCALE, _ambient_t)
 			canvas.draw_string(name_font, bpos + Vector2(-56 * GFX_SCALE, -46 * GFX_SCALE), str(_boss_marker["creature"].get("name", "Boss")), HORIZONTAL_ALIGNMENT_LEFT, int(120 * GFX_SCALE), int(15 * GFX_SCALE), Color(1, 0.82, 0.82, 1))
 			canvas.draw_string(name_font, bpos + Vector2(-56 * GFX_SCALE, -28 * GFX_SCALE), _element_label(_boss_marker["creature"]), HORIZONTAL_ALIGNMENT_LEFT, int(120 * GFX_SCALE), int(12 * GFX_SCALE), _element_color(_boss_marker["creature"]))
 

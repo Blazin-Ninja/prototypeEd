@@ -4,7 +4,7 @@ extends Control
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 const BattleArt = preload("res://scripts/util/BattleArt.gd")
-const BATTLE_GFX_SCALE := 1.45
+const BATTLE_GFX_SCALE := 1.55
 
 @onready var log_box: RichTextLabel = $Safe/VBox/LogPanel/LogMargin/Log
 @onready var player_hp: ProgressBar = $Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol/PHP
