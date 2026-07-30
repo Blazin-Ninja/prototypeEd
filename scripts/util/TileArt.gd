@@ -94,8 +94,8 @@ static func _maybe_blit_prop(
 			if roll < 4:
 				_blit(ci, _pick(["cliff", "cliff_1", "cliff_2"], v), rect, Color(0.92, 0.96, 1.0, 0.72))
 		"forest":
-			if on_grass and roll < 4:
-				_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 0.95))
+			if on_grass and roll < 5:
+				_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 1.0))
 		_:
 			if on_grass and roll < 2:
 				_blit(ci, _pick(["tree", "tree_1"], v), rect, Color(1, 1, 1, 0.75))
