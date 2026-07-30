@@ -4,6 +4,7 @@ class_name LevelSystem
 
 const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const EvolutionSystem = preload("res://scripts/domain/EvolutionSystem.gd")
+const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 const MAX_LEVEL := 20
 
 static func ensure_fields(companion: Dictionary) -> void:
@@ -92,11 +93,17 @@ static func _apply_level_bonus(companion: Dictionary) -> void:
 	companion["max_hp"] = new_max
 	companion["hp"] = mini(new_max, cur + hp_gain)
 
-static func encounter_level(region: Dictionary, floor: int, bosses_defeated: int) -> int:
+static func encounter_level(
+	region: Dictionary,
+	floor: int,
+	bosses_defeated: int,
+	difficulty: String = "normal"
+) -> int:
 	## Progressing encounter level across region floors (1..20).
 	var region_tier := maxi(0, int(region.get("index", 1)) - 1)
 	var floor_n := clampi(floor, 1, 5)
 	var lvl := 1 + region_tier * 3 + (floor_n - 1) + int(floor(float(maxi(0, bosses_defeated)) * 0.5))
+	lvl += DifficultySystem.encounter_level_offset(difficulty)
 	return clampi(lvl, 1, MAX_LEVEL)
 
 static func apply_encounter_level(creature: Dictionary, level: int) -> void:

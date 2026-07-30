@@ -43,12 +43,55 @@ text = "One bond for the entire run. Choose wisely."
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="DiffLabel" type="Label" parent="Safe/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Difficulty"
+horizontal_alignment = 1
+
+[node name="DiffRow" type="HBoxContainer" parent="Safe/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="EasyBtn" type="Button" parent="Safe/VBox/DiffRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+text = "Easy"
+toggle_mode = true
+
+[node name="NormalBtn" type="Button" parent="Safe/VBox/DiffRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+text = "Normal"
+toggle_mode = true
+button_pressed = true
+
+[node name="HardBtn" type="Button" parent="Safe/VBox/DiffRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+text = "Hard"
+toggle_mode = true
+
+[node name="DiffHint" type="Label" parent="Safe/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Normal — standard difficulty."
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="Preview" type="Control" parent="Safe/VBox"]
-custom_minimum_size = Vector2(0, 140)
+custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 
 [node name="Scroll" type="ScrollContainer" parent="Safe/VBox"]
-custom_minimum_size = Vector2(0, 220)
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_vertical = 3
 
@@ -58,7 +101,7 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
 [node name="Detail" type="Label" parent="Safe/VBox"]
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 theme_override_font_sizes/font_size = 15
 autowrap_mode = 3

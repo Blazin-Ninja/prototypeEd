@@ -5,6 +5,7 @@ const CreatureFactory = preload("res://scripts/domain/CreatureFactory.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const EncounterSystem = preload("res://scripts/domain/EncounterSystem.gd")
+const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 const BOND_SHARD_CAP := 5
 
 var account: Dictionary = {}
@@ -14,6 +15,7 @@ var pending_absorb: Dictionary = {}
 var last_absorb_results: Array = []
 var last_run_report: Dictionary = {}
 var pending_retry_companion: Dictionary = {} ## Bond DNA snapshot after a loss, for retry.
+var pending_retry_difficulty: String = "normal"
 
 func _ready() -> void:
 	account = SaveService.load_account()
@@ -46,37 +48,64 @@ func continue_run() -> bool:
 	if not run.has("region_floor"):
 		run["region_floor"] = 1
 		autosave()
+	if not run.has("difficulty"):
+		run["difficulty"] = DifficultySystem.ID_NORMAL
+		autosave()
+	else:
+		run["difficulty"] = DifficultySystem.normalize(str(run.get("difficulty", "normal")))
+	if not account.has("preferred_difficulty"):
+		account["preferred_difficulty"] = DifficultySystem.ID_NORMAL
+		SaveService.save_account(account)
 	return true
 
-func start_new_run(starter_id: String) -> void:
+func start_new_run(starter_id: String, difficulty: String = "normal") -> void:
 	pending_retry_companion = {}
+	pending_retry_difficulty = DifficultySystem.ID_NORMAL
+	var diff := DifficultySystem.normalize(difficulty)
+	set_preferred_difficulty(diff)
 	var companion := CreatureFactory.create_from_template(starter_id, {"is_player": true})
 	ProgressionSystem.apply_starting_passives(companion, account)
-	_begin_run_with_companion(starter_id, companion)
+	_begin_run_with_companion(starter_id, companion, diff)
 
 func start_new_run_from_pending_companion() -> bool:
 	## Death retry: same companion DNA, fresh run at Lv 1.
 	if pending_retry_companion.is_empty():
 		return false
 	var snap: Dictionary = pending_retry_companion.duplicate(true)
+	var diff := DifficultySystem.normalize(pending_retry_difficulty)
 	pending_retry_companion = {}
+	pending_retry_difficulty = DifficultySystem.ID_NORMAL
 	var companion := CreatureFactory.create_retry_companion(snap)
 	if companion.is_empty():
 		return false
 	ProgressionSystem.apply_starting_passives(companion, account)
 	var starter_id := str(companion.get("template_id", snap.get("template_id", "ember_pup")))
-	_begin_run_with_companion(starter_id, companion)
+	_begin_run_with_companion(starter_id, companion, diff)
 	return true
 
 func clear_pending_retry_companion() -> void:
 	pending_retry_companion = {}
+	pending_retry_difficulty = DifficultySystem.ID_NORMAL
 
 func has_pending_retry_companion() -> bool:
 	return not pending_retry_companion.is_empty()
 
-func _begin_run_with_companion(starter_id: String, companion: Dictionary) -> void:
+func get_difficulty() -> String:
+	if run.is_empty():
+		return get_preferred_difficulty()
+	return DifficultySystem.normalize(str(run.get("difficulty", DifficultySystem.ID_NORMAL)))
+
+func get_preferred_difficulty() -> String:
+	return DifficultySystem.normalize(str(account.get("preferred_difficulty", DifficultySystem.ID_NORMAL)))
+
+func set_preferred_difficulty(difficulty: String) -> void:
+	account["preferred_difficulty"] = DifficultySystem.normalize(difficulty)
+	SaveService.save_account(account)
+
+func _begin_run_with_companion(starter_id: String, companion: Dictionary, difficulty: String = "normal") -> void:
 	var forest := DataRegistry.get_region("forest")
 	var start: Dictionary = forest.get("start_cell", {"x": 8, "y": 42})
+	var diff := DifficultySystem.normalize(difficulty)
 	run = {
 		"version": 1,
 		"starter_id": starter_id,
@@ -97,8 +126,9 @@ func _begin_run_with_companion(starter_id: String, companion: Dictionary) -> voi
 		"cleared_obelisks": [],
 		"obelisk_progress": {},
 		"wild_rosters": {},
-		"bond_shards": 1,
-		"region_floor": 1
+		"bond_shards": DifficultySystem.starting_bond_shards(diff),
+		"region_floor": 1,
+		"difficulty": diff
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
 	SaveService.save_account(account)
@@ -258,8 +288,10 @@ func end_run(won: bool) -> Dictionary:
 	# On loss, keep bond DNA so the player can retry with the same companion.
 	if won:
 		pending_retry_companion = {}
+		pending_retry_difficulty = DifficultySystem.ID_NORMAL
 	else:
 		pending_retry_companion = CreatureFactory.snapshot_for_retry(companion)
+		pending_retry_difficulty = get_difficulty()
 	last_run_report = {
 		"won": won,
 		"tokens": tokens,
@@ -268,7 +300,8 @@ func end_run(won: bool) -> Dictionary:
 		"regions_cleared": run.get("regions_cleared", []),
 		"companion_name": companion.get("name", "?"),
 		"companion_template_id": str(companion.get("template_id", "")),
-		"can_retry": not won and not pending_retry_companion.is_empty()
+		"can_retry": not won and not pending_retry_companion.is_empty(),
+		"difficulty": get_difficulty()
 	}
 	account["last_run_summary"] = {
 		"won": won,
@@ -409,7 +442,8 @@ func wild_pressure_for_region(region_id: String, floor: int = -1) -> float:
 	return EncounterSystem.compute_wild_pressure(
 		DataRegistry.get_region(region_id),
 		bosses_defeated_count(),
-		fl
+		fl,
+		get_difficulty()
 	)
 
 func get_wild_roster(region_id: String, floor: int = -1) -> Array:

@@ -12,6 +12,7 @@ const DEFAULT_WILD_COUNT := 6
 const TEST_MODE := true ## Infinite heal + easier testing aids.
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 const TileArt = preload("res://scripts/util/TileArt.gd")
+const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 
 @onready var map_draw: MapCanvas = $MapArea/MapDraw
 @onready var hud: Label = $HUD/Top/Strip/Info
@@ -206,7 +207,7 @@ func _refresh_roster_pressure(roster: Array, region: Dictionary) -> void:
 		var ratio := 1.0
 		if max_hp > 0:
 			ratio = clampf(float(hp) / float(max_hp), 0.0, 1.0)
-		EncounterSystem.refresh_wild_pressure(creature, region, bosses, floor)
+		EncounterSystem.refresh_wild_pressure(creature, region, bosses, floor, GameState.get_difficulty())
 		if bool(entry.get("alive", true)):
 			creature["hp"] = maxi(1, int(round(float(creature.get("max_hp", 1)) * ratio)))
 		else:
@@ -281,7 +282,8 @@ func _tick_wild_respawns() -> void:
 				creature,
 				GameState.current_region(),
 				GameState.bosses_defeated_count(),
-				floor
+				floor,
+				GameState.get_difficulty()
 			)
 			creature["hp"] = int(creature.get("max_hp", 1))
 			entry["creature"] = creature
@@ -318,7 +320,8 @@ func _build_wild_roster(region: Dictionary) -> Array:
 			str(region.get("id")),
 			GameState.account,
 			GameState.bosses_defeated_count(),
-			GameState.current_floor()
+			GameState.current_floor(),
+			GameState.get_difficulty()
 		)
 		if wild.is_empty():
 			continue
@@ -361,7 +364,7 @@ func _setup_boss_marker() -> void:
 	if GameState.run.get("bosses_defeated", []).has(region.get("boss_id")):
 		return
 	var tier := int(GameState.run.get("bosses_defeated", []).size())
-	var boss := EncounterSystem.create_boss(region, tier, GameState.current_floor())
+	var boss := EncounterSystem.create_boss(region, tier, GameState.current_floor(), GameState.get_difficulty())
 	if boss.is_empty():
 		return
 	var bc: Vector2i = _map.get("boss", Vector2i(-1, -1))
@@ -385,10 +388,11 @@ func _show_intro_once() -> void:
 func _refresh_hud() -> void:
 	var c: Dictionary = GameState.get_companion()
 	var region := GameState.current_region()
-	hud.text = "%s F%d/%d   ·   %s Lv%d   ·   HP %d/%d   ·   Shards %d/%d" % [
+	hud.text = "%s F%d/%d · %s · %s Lv%d · HP %d/%d · Shards %d/%d" % [
 		region.get("name", "?"),
 		GameState.current_floor(),
 		GameState.floors_per_region(),
+		DifficultySystem.label(GameState.get_difficulty()),
 		c.get("name", "?"),
 		int(c.get("level", 1)),
 		c.get("hp", 0),
@@ -732,7 +736,8 @@ func _try_activate_obelisk(cell: Vector2i) -> bool:
 		template_id,
 		stage,
 		GameState.bosses_defeated_count(),
-		GameState.current_floor()
+		GameState.current_floor(),
+		GameState.get_difficulty()
 	)
 	if guardian.is_empty():
 		message.text = "The obelisk stays silent."

@@ -1,6 +1,7 @@
 extends Control
 
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
+const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 
 @onready var title: Label = $Safe/VBox/Title
 @onready var body: Label = $Safe/VBox/Body
@@ -25,9 +26,10 @@ func _ready() -> void:
 	var loss_blurb := "Your companion reached zero HP.\nThe bond is broken — but the DNA remains."
 	if can_retry:
 		loss_blurb += "\nStart a new run with the same companion, or return to the menu."
-	body.text = "%s\n\nCompanion: %s\nBattles won: %d\nAbsorptions: %d\nRegions cleared: %s\n\nEvolution Tokens earned: +%d\nTotal tokens: %d" % [
+	body.text = "%s\n\nCompanion: %s\nDifficulty: %s\nBattles won: %d\nAbsorptions: %d\nRegions cleared: %s\n\nEvolution Tokens earned: +%d\nTotal tokens: %d" % [
 		"The hive falls. Humanity endures — for now." if won else loss_blurb,
 		report.get("companion_name", "?"),
+		DifficultySystem.label(str(report.get("difficulty", GameState.pending_retry_difficulty))),
 		int(report.get("battles_won", 0)),
 		int(report.get("absorptions", 0)),
 		", ".join(PackedStringArray(report.get("regions_cleared", []))),
