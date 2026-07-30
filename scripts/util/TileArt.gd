@@ -46,9 +46,10 @@ static func draw_tile(
 			_blit(ci, _pick(["path", "path_1", "path_2"], v), rect, path_tint)
 			_blit(ci, "obelisk", rect, obelisk_tint)
 		MapGenerator.TILE_WATER:
-			_blit(ci, _frame("water", ambient_t, 2.6), rect, Color(1, 1, 1, 1))
+			# Slight overlap hides any residual seam between pond cells.
+			_blit(ci, _frame("water", ambient_t, 2.6), rect.grow(1.0), Color(1, 1, 1, 1))
 		MapGenerator.TILE_LAVA:
-			_blit(ci, _frame("lava", ambient_t, 3.4), rect, Color(1, 1, 1, 1))
+			_blit(ci, _frame("lava", ambient_t, 3.4), rect.grow(1.0), Color(1, 1, 1, 1))
 		MapGenerator.TILE_VOID:
 			_blit(ci, _frame("void", ambient_t, 2.0), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_EMPTY:
@@ -72,10 +73,10 @@ static func _blit_empty_biome(
 		"alien_lab", "meteor_hive":
 			_blit(ci, "empty", rect, Color(0.78, 0.55, 0.95, 1.0))
 			if _prop_seed(cell, 9) % 2 == 0:
-				_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(0.72, 0.48, 0.95, 0.8))
+				_blit_tree(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(0.72, 0.48, 0.95, 0.8))
 		_:
 			_blit(ci, "empty", rect, grass_tint)
-			_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 1))
+			_blit_tree(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 1))
 
 static func _maybe_blit_prop(
 	ci: CanvasItem,
@@ -95,10 +96,10 @@ static func _maybe_blit_prop(
 				_blit(ci, _pick(["cliff", "cliff_1", "cliff_2"], v), rect, Color(0.92, 0.96, 1.0, 0.72))
 		"forest":
 			if on_grass and roll < 5:
-				_blit(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 1.0))
+				_blit_tree(ci, _pick(["tree", "tree_1", "tree_2", "tree_3"], v), rect, Color(1, 1, 1, 1.0))
 		_:
 			if on_grass and roll < 2:
-				_blit(ci, _pick(["tree", "tree_1"], v), rect, Color(1, 1, 1, 0.75))
+				_blit_tree(ci, _pick(["tree", "tree_1"], v), rect, Color(1, 1, 1, 0.75))
 
 static func _pick(keys: Array, variant: int) -> String:
 	if keys.is_empty():
@@ -114,6 +115,14 @@ static func _prop_seed(cell: Vector2i, salt: int) -> int:
 static func _frame(prefix: String, ambient_t: float, speed: float) -> String:
 	var idx := int(floor(ambient_t * speed)) % 4
 	return "%s_%d" % [prefix, idx]
+
+static func _blit_tree(ci: CanvasItem, key: String, rect: Rect2, modulate: Color) -> void:
+	## Draw trees taller than the cell so the crown isn't clipped by the tile box.
+	var tall := Rect2(
+		rect.position + Vector2(-rect.size.x * 0.08, -rect.size.y * 0.42),
+		rect.size * Vector2(1.16, 1.42)
+	)
+	_blit(ci, key, tall, modulate)
 
 static func _blit(ci: CanvasItem, key: String, rect: Rect2, modulate: Color) -> void:
 	var tex := _tex(key)

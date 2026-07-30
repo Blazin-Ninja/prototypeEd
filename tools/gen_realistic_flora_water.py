@@ -170,10 +170,10 @@ def make_grass(variant: int = 0) -> Image.Image:
 # ─── Trees ───────────────────────────────────────────────────────────────────
 
 def make_tree(variant: int = 0) -> Image.Image:
-    """Bark trunk + layered canopy clusters with leaf flecks and ground shadow."""
+    """Full tree kept inside the frame — top padding so canopy is never cropped."""
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     rnd = random.Random(200 + variant * 33)
-    cx = SIZE // 2 + (variant - 1) * 12
+    cx = SIZE // 2 + (variant - 1) * 8
 
     palettes = [
         ((18, 70, 36), (40, 120, 58), (90, 170, 90), (70, 42, 24)),
@@ -183,166 +183,155 @@ def make_tree(variant: int = 0) -> Image.Image:
     ]
     deep, mid, lit, bark = palettes[variant % 4]
 
-    # ground shadow first
-    img = soft_ellipse(img, [cx - 70, 205, cx + 70, 248], (12, 24, 14, 95), 5.0)
+    # Keep silhouette in ~y=28..248 so soft blur never clips the crown.
+    top_pad = 28
+    ground_y = 242
 
-    # trunk — tapered with bark ridges
+    img = soft_ellipse(img, [cx - 55, ground_y - 18, cx + 55, ground_y + 10], (12, 24, 14, 90), 4.0)
+
     trunk_pts = [
-        (cx - 16, 155),
-        (cx - 11, 70),
-        (cx + 11, 70),
-        (cx + 16, 155),
-        (cx + 12, 235),
-        (cx - 12, 235),
+        (cx - 12, 150),
+        (cx - 9, 78),
+        (cx + 9, 78),
+        (cx + 12, 150),
+        (cx + 10, ground_y - 4),
+        (cx - 10, ground_y - 4),
     ]
-    img = soft_poly(img, trunk_pts, rgba(bark), 1.1)
-    # trunk lighting
+    img = soft_poly(img, trunk_pts, rgba(bark), 1.0)
     img = soft_poly(
         img,
-        [(cx - 6, 80), (cx - 2, 80), (cx + 2, 220), (cx - 8, 220)],
-        rgba(shade(bark, 0.25), 140),
-        1.5,
-    )
-    d = ImageDraw.Draw(img)
-    for y in range(85, 230, 14):
-        wobble = rnd.randint(-2, 2)
-        d.arc([cx - 14 + wobble, y, cx + 14 + wobble, y + 16], 200, 340, fill=(40, 24, 12, 150), width=2)
-        # bark pores
-        px = cx + rnd.randint(-8, 8)
-        d.ellipse([px, y + 4, px + 3, y + 7], fill=(30, 18, 10, 100))
-
-    # root flare
-    img = soft_poly(
-        img,
-        [(cx - 14, 210), (cx - 36, 240), (cx - 8, 235), (cx + 8, 235), (cx + 36, 240), (cx + 14, 210)],
-        rgba(shade(bark, -0.1), 220),
+        [(cx - 5, 85), (cx - 1, 85), (cx + 2, ground_y - 20), (cx - 6, ground_y - 20)],
+        rgba(shade(bark, 0.25), 130),
         1.2,
     )
+    d = ImageDraw.Draw(img)
+    for y in range(90, ground_y - 15, 14):
+        wobble = rnd.randint(-2, 2)
+        d.arc([cx - 11 + wobble, y, cx + 11 + wobble, y + 14], 200, 340, fill=(40, 24, 12, 140), width=2)
+        px = cx + rnd.randint(-6, 6)
+        d.ellipse([px, y + 3, px + 2, y + 6], fill=(30, 18, 10, 100))
 
-    # canopy clusters — many overlapping blobs for organic mass
+    img = soft_poly(
+        img,
+        [(cx - 10, ground_y - 28), (cx - 28, ground_y), (cx - 4, ground_y - 4),
+         (cx + 4, ground_y - 4), (cx + 28, ground_y), (cx + 10, ground_y - 28)],
+        rgba(shade(bark, -0.1), 210),
+        1.0,
+    )
+
+    # Compact canopy centered lower so crown stays below top_pad.
+    canopy_cy = 95
     clusters = []
-    for i in range(16):
-        ang = i * (math.pi * 2 / 16) + rnd.random() * 0.4
-        dist = 28 + rnd.randint(0, 48)
-        bx = cx + int(math.cos(ang) * dist * 0.85)
-        by = 70 + int(math.sin(ang) * dist * 0.55) - 20
-        r = 38 + rnd.randint(0, 28)
+    for i in range(14):
+        ang = i * (math.pi * 2 / 14) + rnd.random() * 0.35
+        dist = 18 + rnd.randint(0, 34)
+        bx = cx + int(math.cos(ang) * dist * 0.9)
+        by = canopy_cy + int(math.sin(ang) * dist * 0.5)
+        r = 28 + rnd.randint(0, 18)
         col = deep if i % 3 == 0 else (mid if i % 3 == 1 else lit)
         clusters.append((bx, by, r, col))
-    # center mass
     clusters += [
-        (cx - 10, 55, 70, mid),
-        (cx + 15, 50, 65, lit),
-        (cx, 35, 55, deep),
-        (cx - 25, 80, 50, mid),
-        (cx + 30, 85, 48, deep),
+        (cx - 6, canopy_cy - 8, 48, mid),
+        (cx + 10, canopy_cy - 4, 44, lit),
+        (cx, canopy_cy - 18, 40, deep),
+        (cx - 18, canopy_cy + 12, 36, mid),
+        (cx + 20, canopy_cy + 14, 34, deep),
     ]
     for bx, by, r, col in clusters:
-        img = soft_ellipse(img, [bx - r, by - r, bx + r, by + r], rgba(col, 235), 2.4)
-        # underside AO on each cluster
+        # Clamp vertically into safe frame
+        by = max(top_pad + r // 2, min(by, 150))
+        img = soft_ellipse(img, [bx - r, by - r, bx + r, by + r], rgba(col, 235), 2.0)
         img = soft_ellipse(
             img,
-            [bx - int(r * 0.7), by + int(r * 0.15), bx + int(r * 0.7), by + int(r * 0.95)],
-            rgba(shade(col, -0.35), 70),
-            3.0,
-        )
-        # highlight cap
-        img = soft_ellipse(
-            img,
-            [bx - int(r * 0.45), by - int(r * 0.75), bx + int(r * 0.15), by - int(r * 0.1)],
-            rgba(shade(col, 0.35), 90),
+            [bx - int(r * 0.65), by + int(r * 0.1), bx + int(r * 0.65), by + int(r * 0.85)],
+            rgba(shade(col, -0.35), 65),
             2.5,
         )
+        img = soft_ellipse(
+            img,
+            [bx - int(r * 0.4), by - int(r * 0.7), bx + int(r * 0.12), by - int(r * 0.05)],
+            rgba(shade(col, 0.35), 85),
+            2.0,
+        )
 
-    # individual leaf flecks / sun spots
     d = ImageDraw.Draw(img)
     pix = img.load()
-    for _ in range(90):
-        x = rnd.randint(cx - 95, cx + 95)
-        y = rnd.randint(10, 140)
-        if x < 0 or y < 0 or x >= SIZE - 4 or y >= SIZE - 4:
+    for _ in range(70):
+        x = rnd.randint(cx - 70, cx + 70)
+        y = rnd.randint(top_pad + 4, 145)
+        if x < 2 or y < 2 or x >= SIZE - 4 or y >= SIZE - 4:
             continue
         if pix[x, y][3] < 40:
             continue
         col = lit if rnd.random() > 0.4 else mid
-        d.ellipse([x, y, x + rnd.randint(3, 7), y + rnd.randint(2, 5)], fill=rgba(col, 190))
+        d.ellipse([x, y, x + rnd.randint(3, 6), y + rnd.randint(2, 4)], fill=rgba(col, 185))
 
-    # hanging branch hint
-    d.line([(cx + 20, 100), (cx + 55, 130)], fill=rgba(bark, 180), width=3)
-    img = soft_ellipse(img, [cx + 40, 115, cx + 75, 150], rgba(mid, 200), 1.8)
-
+    d.line([(cx + 14, 110), (cx + 40, 130)], fill=rgba(bark, 170), width=2)
+    img = soft_ellipse(img, [cx + 28, 118, cx + 54, 146], rgba(mid, 195), 1.5)
     return finish(img)
 
 
 # ─── Water ───────────────────────────────────────────────────────────────────
 
 def make_water(phase: int = 0) -> Image.Image:
-    """Depth-graded water with caustics, foam crests, and soft reflections."""
-    deep = (8, 42, 72)
-    mid = (22, 100, 140)
-    shallow = (70, 175, 205)
-    foam = (210, 240, 250)
+    """Seamless looping water — no borders/vignettes so ponds don't look square."""
+    deep = (10, 52, 82)
+    mid = (28, 112, 150)
+    shallow = (78, 180, 210)
     img = Image.new("RGBA", (SIZE, SIZE))
     pix = img.load()
+    # Periods that wrap exactly at SIZE for seamless tiling.
+    two_pi = math.pi * 2.0
+    phase_shift = phase * 0.55
 
     for y in range(SIZE):
         for x in range(SIZE):
-            # depth gradient (deeper toward bottom-right for variety)
-            depth = 0.35 + 0.4 * (y / SIZE) + 0.15 * (x / SIZE)
-            # multi-wave field
-            w1 = math.sin((x + phase * 9) * 0.055 + y * 0.04)
-            w2 = math.cos((y - phase * 4) * 0.07 + x * 0.03)
-            w3 = math.sin((x * 0.12 + y * 0.09) + phase * 0.8)
-            caustic = fbm(x * 1.6 + phase * 3, y * 1.6, 90 + phase)
-            wave = w1 * 0.45 + w2 * 0.3 + w3 * 0.15 + (caustic - 0.5) * 0.5
+            u = x / SIZE
+            v = y / SIZE
+            # seamless waves (integer frequencies)
+            w1 = math.sin(two_pi * (2 * u + 1 * v) + phase_shift)
+            w2 = math.cos(two_pi * (1 * u - 2 * v) + phase_shift * 1.3)
+            w3 = math.sin(two_pi * (3 * u + 2 * v) + phase_shift * 0.7)
+            # seamless value noise via wrapped sines
+            n = (
+                math.sin(two_pi * (3 * u + phase * 0.1)) * math.cos(two_pi * (2 * v + phase * 0.07))
+                + 0.5 * math.sin(two_pi * (5 * u - 3 * v) + phase_shift)
+            )
+            caustic = (n + 1.5) / 3.0
+            wave = w1 * 0.4 + w2 * 0.3 + w3 * 0.2 + (caustic - 0.5) * 0.35
 
+            # gentle overall depth — no corner bias (that reads as squares)
+            depth = 0.45 + 0.12 * math.sin(two_pi * (u + v) + phase_shift * 0.2)
             base = mix(deep, mid, depth)
-            if wave > 0.55:
-                col = mix(base, shallow, min(1.0, (wave - 0.55) * 2.2))
-            elif wave < -0.45:
-                col = mix(base, shade(deep, -0.15), min(1.0, (-wave - 0.45) * 1.8))
+            if wave > 0.45:
+                col = mix(base, shallow, min(1.0, (wave - 0.45) * 1.6))
+            elif wave < -0.4:
+                col = mix(base, shade(deep, -0.12), min(1.0, (-wave - 0.4) * 1.4))
             else:
-                col = mix(base, shallow, 0.15 + wave * 0.2)
-
-            # specular glitter on wave peaks
-            if wave > 0.75 and caustic > 0.6:
-                col = mix(col, (255, 255, 255), 0.45)
+                col = mix(base, shallow, 0.12 + wave * 0.15)
+            if wave > 0.72 and caustic > 0.55:
+                col = mix(col, (245, 252, 255), 0.28)
             pix[x, y] = rgba(col)
 
-    d = ImageDraw.Draw(img)
-    # foam crest arcs (animated by phase)
-    for i in range(4):
-        yy = 45 + i * 48 + (phase % 4) * 5
-        alpha = 130 - i * 15
-        d.arc([12, yy - 28, SIZE - 12, yy + 36], 200, 340, fill=(*foam, alpha), width=3)
-        d.arc([30, yy - 10, SIZE - 30, yy + 40], 210, 330, fill=(255, 255, 255, alpha // 2), width=2)
+    # Soft highlight ribbons that also wrap (drawn via pixels, not hard arcs)
+    for y in range(SIZE):
+        for x in range(SIZE):
+            u = x / SIZE
+            v = y / SIZE
+            ribbon = math.sin(two_pi * (1 * u + 3 * v) + phase_shift * 1.1)
+            if ribbon > 0.88:
+                r, g, b, a = pix[x, y]
+                col = mix((r, g, b), (230, 245, 255), 0.22)
+                pix[x, y] = rgba(col, a)
 
-    # soft shoreline foam flecks
-    rnd = random.Random(50 + phase)
-    for _ in range(40):
-        x = rnd.randint(8, SIZE - 10)
-        y = rnd.randint(8, SIZE - 10)
-        if rnd.random() > 0.5:
-            d.ellipse([x, y, x + 5, y + 2], fill=(230, 245, 255, 100))
-
-    # subsurface green tint patches (weeds / algae)
-    for _ in range(6):
-        x, y = rnd.randint(20, SIZE - 40), rnd.randint(40, SIZE - 40)
-        img = soft_ellipse(img, [x, y, x + 36, y + 20], (30, 120, 90, 45), 4.0)
-
-    # vignette depth
-    overlay = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    od = ImageDraw.Draw(overlay)
-    od.rectangle([0, 0, SIZE - 1, SIZE - 1], outline=(6, 30, 50, 50), width=4)
-    img = Image.alpha_composite(img, overlay)
-    return finish(img)
+    # Light blur only — avoid DETAIL/sharpen that exaggerates tile edges
+    soft = img.filter(ImageFilter.GaussianBlur(0.8))
+    out = Image.alpha_composite(soft, img)
+    out = ImageEnhance.Color(out).enhance(1.06)
+    return out
 
 
 def main():
-    for i in range(4):
-        name = "grass.png" if i == 0 else f"grass_{i}.png"
-        make_grass(i).save(TILES / name)
-        print("grass", name)
     for i in range(4):
         name = "tree.png" if i == 0 else f"tree_{i}.png"
         make_tree(i).save(TILES / name)
