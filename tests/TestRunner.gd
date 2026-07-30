@@ -505,6 +505,8 @@ func _test_graphics_assets() -> int:
 	f += _ok("impact fx present", ResourceLoader.exists("res://assets/fx/impact.png"))
 	f += _ok("player walk sheet present", ResourceLoader.exists("res://assets/player/human_walk_x2.png"))
 	f += _ok("ember pup sprite present", ResourceLoader.exists("res://assets/creatures/ember_pup.png"))
+	var ember_tex = load("res://assets/creatures/ember_pup.png")
+	f += _ok("ember pup hi-res", ember_tex != null and ember_tex.get_width() >= 256)
 	f += _ok("mutation horns present", ResourceLoader.exists("res://assets/mutations/horns/horns_small.png"))
 	var theme = AppTheme.get_theme()
 	f += _ok("app theme builds", theme != null)

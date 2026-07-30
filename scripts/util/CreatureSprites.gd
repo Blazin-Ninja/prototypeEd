@@ -68,9 +68,9 @@ static func draw(canvas: CanvasItem, creature: Dictionary, center: Vector2, radi
 	var bob := sin(anim_t * 2.2) * (radius * 0.04)
 	var c := center + Vector2(0, bob)
 	var is_boss := bool(creature.get("is_boss", false))
-	var size := Vector2(radius * 2.45, radius * 2.45)
+	var size := Vector2(radius * 2.55, radius * 2.55)
 	if is_boss:
-		size *= 1.18
+		size *= 1.2
 
 	# Soft shadow
 	canvas.draw_circle(c + Vector2(0, radius * 0.85), radius * 0.55, Color(0, 0, 0, 0.25))
