@@ -53,6 +53,9 @@ func continue_run() -> bool:
 		autosave()
 	else:
 		run["difficulty"] = DifficultySystem.normalize(str(run.get("difficulty", "normal")))
+	if not run.has("explored_maps"):
+		run["explored_maps"] = {}
+		autosave()
 	if not account.has("preferred_difficulty"):
 		account["preferred_difficulty"] = DifficultySystem.ID_NORMAL
 		SaveService.save_account(account)
@@ -128,7 +131,8 @@ func _begin_run_with_companion(starter_id: String, companion: Dictionary, diffic
 		"wild_rosters": {},
 		"bond_shards": DifficultySystem.starting_bond_shards(diff),
 		"region_floor": 1,
-		"difficulty": diff
+		"difficulty": diff,
+		"explored_maps": {}
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
 	SaveService.save_account(account)
@@ -219,6 +223,51 @@ func wild_roster_key(region_id: String = "", floor: int = -1) -> String:
 	var rid := region_id if region_id != "" else str(run.get("region_id", "forest"))
 	var fl := floor if floor > 0 else current_floor()
 	return "%s#%d" % [rid, fl]
+
+func explored_map_key(region_id: String = "", floor: int = -1) -> String:
+	return wild_roster_key(region_id, floor)
+
+func get_explored_cells(region_id: String = "", floor: int = -1) -> Dictionary:
+	## Returns { "x,y": true, ... } for the current (or given) region floor.
+	if run.is_empty():
+		return {}
+	var maps: Dictionary = run.get("explored_maps", {})
+	var key := explored_map_key(region_id, floor)
+	var cells = maps.get(key, null)
+	if cells == null or not (cells is Dictionary):
+		return {}
+	return cells
+
+func is_cell_explored(cell: Vector2i, region_id: String = "", floor: int = -1) -> bool:
+	var cells := get_explored_cells(region_id, floor)
+	return cells.has("%d,%d" % [cell.x, cell.y])
+
+func reveal_exploration_around(center: Vector2, radius: int = 3, region_id: String = "", floor: int = -1) -> bool:
+	## Reveal Chebyshev neighborhood around the player. Returns true if anything new was revealed.
+	if run.is_empty():
+		return false
+	var maps: Dictionary = run.get("explored_maps", {})
+	var key := explored_map_key(region_id, floor)
+	var cells: Dictionary = {}
+	if maps.has(key) and maps[key] is Dictionary:
+		cells = maps[key]
+	var cx := int(floor(center.x))
+	var cy := int(floor(center.y))
+	var r := maxi(0, radius)
+	var changed := false
+	for y in range(cy - r, cy + r + 1):
+		for x in range(cx - r, cx + r + 1):
+			if maxi(absi(x - cx), absi(y - cy)) > r:
+				continue
+			var ck := "%d,%d" % [x, y]
+			if cells.has(ck):
+				continue
+			cells[ck] = true
+			changed = true
+	if changed:
+		maps[key] = cells
+		run["explored_maps"] = maps
+	return changed
 
 func unlock_region(region_id: String) -> void:
 	var unlocked: Array = run.get("unlocked_regions", [])

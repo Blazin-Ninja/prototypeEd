@@ -104,6 +104,17 @@ theme_override_font_sizes/font_size = 15
 text = ""
 autowrap_mode = 3
 
+[node name="Minimap" type="Control" parent="HUD"]
+custom_minimum_size = Vector2(148, 148)
+layout_mode = 1
+anchors_preset = 0
+offset_left = 12.0
+offset_top = 100.0
+offset_right = 160.0
+offset_bottom = 248.0
+mouse_filter = 2
+script = ExtResource("4")
+
 [node name="Joystick" type="Control" parent="HUD"]
 custom_minimum_size = Vector2(168, 168)
 layout_mode = 1

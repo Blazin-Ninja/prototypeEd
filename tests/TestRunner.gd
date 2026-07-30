@@ -30,6 +30,7 @@ func _ready() -> void:
 	failed += _test_level_up()
 	failed += _test_bond_retry()
 	failed += _test_difficulty_modes()
+	failed += _test_minimap_fog()
 	failed += _test_wild_respawn()
 	failed += _test_wild_elements_and_boss_scaling()
 	failed += _test_graphics_assets()
@@ -366,6 +367,26 @@ func _test_difficulty_modes() -> int:
 	f += _ok("preferred difficulty saved", GameState.get_preferred_difficulty() == "easy")
 	f += _ok("normalize junk to normal", DifficultySystem.normalize("nonsense") == "normal")
 	f += _ok("base still loads", not base.is_empty())
+	return f
+
+func _test_minimap_fog() -> int:
+	var f := 0
+	GameState.start_new_run("ember_pup", "normal")
+	f += _ok("explored maps start empty", GameState.get_explored_cells().is_empty())
+	f += _ok("cell starts fogged", not GameState.is_cell_explored(Vector2i(8, 42)))
+	var changed := GameState.reveal_exploration_around(Vector2(8.5, 42.5), 2)
+	f += _ok("reveal marks cells", changed and GameState.is_cell_explored(Vector2i(8, 42)))
+	f += _ok("reveal covers radius", GameState.is_cell_explored(Vector2i(10, 42)))
+	f += _ok("outside radius stays fogged", not GameState.is_cell_explored(Vector2i(20, 20)))
+	var again := GameState.reveal_exploration_around(Vector2(8.5, 42.5), 2)
+	f += _ok("repeat reveal no change", not again)
+	# Floor keys are separate.
+	GameState.run["region_floor"] = 2
+	f += _ok("other floor fogged", GameState.get_explored_cells().is_empty())
+	GameState.reveal_exploration_around(Vector2(3.2, 4.1), 1)
+	f += _ok("floor2 explores independently", GameState.is_cell_explored(Vector2i(3, 4)))
+	GameState.run["region_floor"] = 1
+	f += _ok("floor1 still remembered", GameState.is_cell_explored(Vector2i(8, 42)))
 	return f
 
 func _test_wild_respawn() -> int:

@@ -10,11 +10,15 @@ const SAVE_INTERVAL := 1.25
 const WILD_SPEED := 1.05
 const DEFAULT_WILD_COUNT := 6
 const TEST_MODE := true ## Infinite heal + easier testing aids.
+const MINIMAP_REVEAL_RADIUS := 3
+const FOG_PURPLE := Color(0.28, 0.08, 0.42, 0.92)
+const FOG_PURPLE_EDGE := Color(0.42, 0.16, 0.58, 0.55)
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 const TileArt = preload("res://scripts/util/TileArt.gd")
 const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 
 @onready var map_draw: MapCanvas = $MapArea/MapDraw
+@onready var minimap: MapCanvas = $HUD/Minimap
 @onready var hud: Label = $HUD/Top/Strip/Info
 @onready var hp_bar: ProgressBar = $HUD/Top/Strip/HPBar
 @onready var message: Label = $HUD/Message
@@ -40,6 +44,8 @@ var _facing: String = "down"
 var _walk_phase: float = 0.0
 var _moving := false
 var _contact_grace := 0.0
+var _explored: Dictionary = {} ## "x,y" -> true cache for current floor
+var _minimap_dirty := true
 
 func _ready() -> void:
 	if GameState.run.is_empty():
@@ -55,6 +61,7 @@ func _ready() -> void:
 	heal_btn.pressed.connect(_test_heal)
 	# Paint via MapCanvas._draw — never rely on external draw-signal painting.
 	map_draw.paint = Callable(self, "_paint_world")
+	minimap.paint = Callable(self, "_paint_minimap")
 	_load_region()
 	joystick.direction_changed.connect(_on_stick)
 	$HUD/Buttons/ABtn.pressed.connect(_on_a)
@@ -69,6 +76,8 @@ func _ready() -> void:
 func _force_redraw() -> void:
 	if is_instance_valid(map_draw):
 		map_draw.queue_redraw()
+	if is_instance_valid(minimap):
+		minimap.queue_redraw()
 
 func _on_stick(dir: Vector2) -> void:
 	_stick = dir
@@ -111,7 +120,30 @@ func _load_region() -> void:
 	_spawn_wilds()
 	_setup_boss_marker()
 	_contact_grace = 1.25
+	_reload_explored_cache()
+	_reveal_at_player(true)
 	map_draw.queue_redraw()
+	_queue_minimap_redraw()
+
+func _reload_explored_cache() -> void:
+	_explored = GameState.get_explored_cells().duplicate(true)
+	_minimap_dirty = true
+
+func _reveal_at_player(force_save: bool = false) -> void:
+	var changed := GameState.reveal_exploration_around(_pos, MINIMAP_REVEAL_RADIUS)
+	if changed:
+		_explored = GameState.get_explored_cells().duplicate(true)
+		_minimap_dirty = true
+		_queue_minimap_redraw()
+		if force_save:
+			GameState.autosave()
+	elif force_save and _explored.is_empty():
+		# Ensure first load still paints fog even with empty explore set.
+		_queue_minimap_redraw()
+
+func _queue_minimap_redraw() -> void:
+	if is_instance_valid(minimap):
+		minimap.queue_redraw()
 
 func _apply_obelisk_state() -> void:
 	_obelisk_state.clear()
@@ -435,6 +467,7 @@ func _process(delta: float) -> void:
 			var tile := _tile_at(_pos)
 			if tile != _last_tile:
 				_last_tile = tile
+				_reveal_at_player()
 				_on_enter_tile(_tile_type(tile))
 			_check_contacts()
 	else:
@@ -442,6 +475,9 @@ func _process(delta: float) -> void:
 		_walk_phase = move_toward(_walk_phase, floorf(_walk_phase / 4.0) * 4.0, delta * 10.0)
 		_check_contacts()
 	map_draw.queue_redraw()
+	if _minimap_dirty or _moving:
+		_queue_minimap_redraw()
+		_minimap_dirty = false
 
 func _update_wilds(delta: float) -> void:
 	for w in _wilds:
@@ -538,6 +574,102 @@ func _tile_type(t: Vector2i) -> int:
 	if t.y < 0 or t.x < 0 or t.y >= int(_map.height) or t.x >= int(_map.width):
 		return MapGenerator.TILE_WALL
 	return int(_map.tiles[t.y][t.x])
+
+func _paint_minimap(canvas: CanvasItem) -> void:
+	if _map.is_empty() or canvas == null:
+		return
+	var sz: Vector2 = canvas.get_size()
+	if sz.x < 8.0 or sz.y < 8.0:
+		return
+	var map_w: int = int(_map.width)
+	var map_h: int = int(_map.height)
+	if map_w < 1 or map_h < 1:
+		return
+	var pad := 4.0
+	var inner := Rect2(Vector2(pad, pad), sz - Vector2(pad * 2.0, pad * 2.0))
+	var cell := minf(inner.size.x / float(map_w), inner.size.y / float(map_h))
+	var draw_w := cell * float(map_w)
+	var draw_h := cell * float(map_h)
+	var origin := inner.position + Vector2((inner.size.x - draw_w) * 0.5, (inner.size.y - draw_h) * 0.5)
+	var region := GameState.current_region()
+	var grass := Color.html(str(region.get("grass_color", "#2d6a4f")))
+	var pathc := Color.html(str(region.get("path_color", "#52796f")))
+	# Frame + full purple fog base (unexplored).
+	canvas.draw_rect(Rect2(Vector2.ZERO, sz), Color(0.05, 0.03, 0.08, 0.92), true)
+	canvas.draw_rect(Rect2(origin, Vector2(draw_w, draw_h)), FOG_PURPLE, true)
+	var tiles: Array = _map.tiles
+	for y in map_h:
+		for x in map_w:
+			var ck := "%d,%d" % [x, y]
+			if not _explored.has(ck):
+				continue
+			var t: int = int(tiles[y][x])
+			var col := _minimap_tile_color(t, grass, pathc)
+			var r := Rect2(origin + Vector2(float(x) * cell, float(y) * cell), Vector2(cell, cell))
+			canvas.draw_rect(r, col, true)
+	# Soft purple veil over explored edges for atmosphere.
+	for y2 in map_h:
+		for x2 in map_w:
+			var ck2 := "%d,%d" % [x2, y2]
+			if not _explored.has(ck2):
+				continue
+			if _explored_neighbor_fogged(x2, y2, map_w, map_h):
+				var er := Rect2(origin + Vector2(float(x2) * cell, float(y2) * cell), Vector2(cell, cell))
+				canvas.draw_rect(er, FOG_PURPLE_EDGE, true)
+	# Player blip.
+	var px := origin.x + _pos.x * cell
+	var py := origin.y + _pos.y * cell
+	canvas.draw_circle(Vector2(px, py), maxf(2.2, cell * 0.55), Color(1.0, 0.92, 0.35, 1.0))
+	canvas.draw_arc(Vector2(px, py), maxf(3.0, cell * 0.85), 0.0, TAU, 16, Color(1.0, 0.95, 0.55, 0.9), 1.2, true)
+	# Border
+	canvas.draw_rect(Rect2(Vector2.ZERO, sz), Color(0.55, 0.35, 0.75, 0.95), false, 2.0)
+	canvas.draw_string(
+		AppTheme.body_font(),
+		Vector2(8, 14),
+		"Map",
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		12,
+		Color(0.92, 0.82, 1.0, 0.9)
+	)
+
+func _explored_neighbor_fogged(x: int, y: int, map_w: int, map_h: int) -> bool:
+	for oy in range(-1, 2):
+		for ox in range(-1, 2):
+			if ox == 0 and oy == 0:
+				continue
+			var nx := x + ox
+			var ny := y + oy
+			if nx < 0 or ny < 0 or nx >= map_w or ny >= map_h:
+				return true
+			if not _explored.has("%d,%d" % [nx, ny]):
+				return true
+	return false
+
+func _minimap_tile_color(tile: int, grass: Color, pathc: Color) -> Color:
+	match tile:
+		MapGenerator.TILE_PATH, MapGenerator.TILE_BRIDGE:
+			return pathc.lightened(0.1)
+		MapGenerator.TILE_GRASS:
+			return grass
+		MapGenerator.TILE_CAMP:
+			return Color(0.95, 0.85, 0.35, 1.0)
+		MapGenerator.TILE_BOSS:
+			return Color(0.9, 0.25, 0.28, 1.0)
+		MapGenerator.TILE_EXIT:
+			return Color(0.45, 0.75, 1.0, 1.0)
+		MapGenerator.TILE_OBELISK:
+			return Color(0.55, 0.9, 1.0, 1.0)
+		MapGenerator.TILE_WATER:
+			return Color(0.25, 0.45, 0.75, 1.0)
+		MapGenerator.TILE_LAVA:
+			return Color(0.85, 0.35, 0.15, 1.0)
+		MapGenerator.TILE_VOID:
+			return Color(0.12, 0.05, 0.2, 1.0)
+		MapGenerator.TILE_ROCK, MapGenerator.TILE_WALL:
+			return Color(0.28, 0.28, 0.32, 1.0)
+		_:
+			return Color(0.1, 0.12, 0.11, 1.0)
 
 func _paint_world(canvas: CanvasItem) -> void:
 	if _map.is_empty() or canvas == null:
