@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Creature realism pass v2 — +62% resolution and deeper material shading.
+"""Creature realism pass v3 — organic spline silhouettes (less circle/triangle look).
 
-Resolutions: wild 416px (256*1.62), bosses 512px.
+Resolutions: wild 416px, bosses 512px. Bodies use Catmull-Rom splines, tapered
+limbs, curved ears/fins, and per-species accents instead of stacked ellipses.
 """
 from __future__ import annotations
 
@@ -84,6 +85,138 @@ def soft_poly(img: Image.Image, pts, color, blur=1.2):
     if blur > 0:
         layer = layer.filter(ImageFilter.GaussianBlur(blur))
     return Image.alpha_composite(img, layer)
+
+
+def cubic_bezier(p0, p1, p2, p3, t: float):
+    u = 1.0 - t
+    return (
+        u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+        u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
+    )
+
+
+def sample_bezier(p0, p1, p2, p3, steps: int = 18):
+    return [cubic_bezier(p0, p1, p2, p3, i / steps) for i in range(steps + 1)]
+
+
+def catmull_rom(p0, p1, p2, p3, t: float):
+    t2 = t * t
+    t3 = t2 * t
+    return (
+        0.5
+        * (
+            (2 * p1[0])
+            + (-p0[0] + p2[0]) * t
+            + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2
+            + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3
+        ),
+        0.5
+        * (
+            (2 * p1[1])
+            + (-p0[1] + p2[1]) * t
+            + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2
+            + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3
+        ),
+    )
+
+
+def spline_closed(anchors, steps_per: int = 12):
+    n = len(anchors)
+    if n < 3:
+        return list(anchors)
+    pts: list = []
+    for i in range(n):
+        p0 = anchors[(i - 1) % n]
+        p1 = anchors[i]
+        p2 = anchors[(i + 1) % n]
+        p3 = anchors[(i + 2) % n]
+        for j in range(steps_per):
+            pts.append(catmull_rom(p0, p1, p2, p3, j / steps_per))
+    return pts
+
+
+def wobble_points(pts, seed: int, amp: float = 2.0):
+    rnd = random.Random(seed)
+    return [(x + rnd.uniform(-amp, amp), y + rnd.uniform(-amp, amp)) for x, y in pts]
+
+
+def soft_path_fill(img, pts, color, blur: float = 1.3):
+    if len(pts) < 3:
+        return img
+    layer = new_img(img.size[0])
+    d = ImageDraw.Draw(layer)
+    d.polygon(pts, fill=color)
+    if blur > 0:
+        layer = layer.filter(ImageFilter.GaussianBlur(blur))
+    return Image.alpha_composite(img, layer)
+
+
+def ribbon_along(centerline, half_widths):
+    if len(centerline) < 2:
+        return []
+    left, right = [], []
+    for i, (x, y) in enumerate(centerline):
+        if i == 0:
+            dx = centerline[1][0] - x
+            dy = centerline[1][1] - y
+        elif i == len(centerline) - 1:
+            dx = x - centerline[i - 1][0]
+            dy = y - centerline[i - 1][1]
+        else:
+            dx = centerline[i + 1][0] - centerline[i - 1][0]
+            dy = centerline[i + 1][1] - centerline[i - 1][1]
+        ln = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / ln, dx / ln
+        w = half_widths[min(i, len(half_widths) - 1)]
+        left.append((x + nx * w, y + ny * w))
+        right.append((x - nx * w, y - ny * w))
+    return left + list(reversed(right))
+
+
+def organic_blob(img, anchors, color, seed: int = 1, blur: float = 1.5, wobble: float = 1.6):
+    pts = wobble_points(spline_closed(anchors), seed, wobble)
+    return soft_path_fill(img, pts, color, blur)
+
+
+def organic_ribbon(img, centerline, width_start, width_end, color, seed: int = 1, blur: float = 1.1):
+    n = len(centerline)
+    if n < 2:
+        return img
+    ws = [width_start + (width_end - width_start) * (i / max(1, n - 1)) for i in range(n)]
+    pts = wobble_points(ribbon_along(centerline, ws), seed, 0.8)
+    return soft_path_fill(img, pts, color, blur)
+
+
+def flame_tendrils(img, cx, cy, sc, accent, seed: int = 1):
+    rnd = random.Random(seed)
+    for i in range(4):
+        ox = cx + rnd.randint(int(-20 * sc), int(40 * sc))
+        oy = cy + rnd.randint(int(-30 * sc), int(10 * sc))
+        tip = (ox + rnd.randint(int(15 * sc), int(45 * sc)), oy - rnd.randint(int(25 * sc), int(55 * sc)))
+        base = (ox, oy)
+        ctrl = ((base[0] + tip[0]) / 2 + rnd.uniform(-8 * sc, 8 * sc), base[1] - 12 * sc)
+        centerline = sample_bezier(base, ctrl, ctrl, tip, 16)
+        img = organic_ribbon(img, centerline, 10 * sc, 2 * sc, rgba(accent, 200), seed + i, 1.4)
+        img = organic_ribbon(img, centerline, 6 * sc, 1 * sc, (255, 240, 160, 170), seed + 100 + i, 1.0)
+    return img
+
+
+def electric_arc(img, cx, cy, sc, accent, seed: int = 1):
+    rnd = random.Random(seed)
+    pts = [(cx, cy)]
+    x, y = cx, cy
+    for _ in range(5):
+        x += rnd.randint(int(8 * sc), int(22 * sc))
+        y += rnd.randint(int(-18 * sc), int(10 * sc))
+        pts.append((x, y))
+    for i in range(len(pts) - 1):
+        mid = (
+            (pts[i][0] + pts[i + 1][0]) / 2,
+            (pts[i][1] + pts[i + 1][1]) / 2 + rnd.uniform(-6 * sc, 6 * sc),
+        )
+        seg = sample_bezier(pts[i], mid, mid, pts[i + 1], 8)
+        img = organic_ribbon(img, seg, 5 * sc, 3 * sc, rgba(accent, 230), seed, 0.6)
+    return img
 
 
 def radial_shade(img: Image.Image, cx, cy, rx, ry, base, light_dir=(-0.45, -0.55), strength=0.55):
@@ -258,7 +391,7 @@ def finish(img: Image.Image) -> Image.Image:
     return out
 
 
-def make_quad(base, elements, boss=False, seed=1) -> Image.Image:
+def make_quad(base, elements, boss=False, seed=1, cid="") -> Image.Image:
     s = BOSS_SIZE if boss else SIZE
     img = new_img(s)
     img = ground_shadow(img, s)
@@ -266,137 +399,162 @@ def make_quad(base, elements, boss=False, seed=1) -> Image.Image:
     dark, light = shade(c, -0.32), shade(c, 0.28)
     cx, cy = s // 2, int(s * 0.52)
     sc = s / 256.0
-    # legs with volume
-    for lx, ly in [(-44, 38), (-18, 42), (18, 42), (44, 38)]:
-        bx = cx + int(lx * sc)
-        by = cy + int(ly * sc)
-        img = soft_blob(img, [bx - int(12 * sc), by, bx + int(12 * sc), by + int(40 * sc)], rgba(dark), 1.4)
-        radial_shade(img, bx, by + int(18 * sc), 12 * sc, 20 * sc, dark, strength=0.4)
-    # torso
-    img = soft_blob(
-        img,
-        [cx - int(72 * sc), cy - int(28 * sc), cx + int(72 * sc), cy + int(48 * sc)],
-        rgba(c),
-        1.8,
-    )
-    radial_shade(img, cx - 8 * sc, cy + 4 * sc, 72 * sc, 40 * sc, c, strength=0.62)
-    # chest highlight
-    img = soft_blob(
-        img,
-        [cx - int(40 * sc), cy - int(10 * sc), cx + int(20 * sc), cy + int(24 * sc)],
-        rgba(light, 70),
-        3.0,
-    )
-    # head
-    img = soft_blob(
-        img,
-        [cx - int(48 * sc), cy - int(88 * sc), cx + int(48 * sc), cy - int(8 * sc)],
-        rgba(c),
-        1.6,
-    )
-    radial_shade(img, cx - 6 * sc, cy - 48 * sc, 48 * sc, 40 * sc, c, strength=0.65)
-    # ears
-    img = soft_poly(
-        img,
-        [
-            (cx - int(36 * sc), cy - int(70 * sc)),
-            (cx - int(62 * sc), cy - int(118 * sc)),
-            (cx - int(14 * sc), cy - int(82 * sc)),
-        ],
-        rgba(dark),
-        1.0,
-    )
-    img = soft_poly(
-        img,
-        [
-            (cx + int(36 * sc), cy - int(70 * sc)),
-            (cx + int(62 * sc), cy - int(118 * sc)),
-            (cx + int(14 * sc), cy - int(82 * sc)),
-        ],
-        rgba(dark),
-        1.0,
-    )
-    # inner ear
-    img = soft_poly(
-        img,
-        [
-            (cx - int(34 * sc), cy - int(74 * sc)),
-            (cx - int(50 * sc), cy - int(104 * sc)),
-            (cx - int(22 * sc), cy - int(82 * sc)),
-        ],
-        rgba(shade(c, 0.15), 180),
-        0.8,
-    )
     el = elements[0] if elements else "normal"
     accent = ELEMENT_ACCENT.get(el, light)
     glow = el in ("electric", "light", "poison", "shadow", "fire")
-    img = draw_eyes(img, cx, cy - int(52 * sc), int(18 * sc), int(9 * sc), glow=glow, accent=accent)
-    # nose / muzzle
-    img = soft_blob(
+
+    for ox in (-38, -14, 14, 38):
+        bx = cx + int(ox * sc)
+        leg = sample_bezier(
+            (bx, cy + int(8 * sc)),
+            (bx + int(4 * sc), cy + int(28 * sc)),
+            (bx - int(2 * sc), cy + int(48 * sc)),
+            (bx, cy + int(58 * sc)),
+            12,
+        )
+        img = organic_ribbon(img, leg, 11 * sc, 7 * sc, rgba(dark), seed + ox, 1.2)
+
+    if cid in ("pine_wolf", "crystal_wolf", "sand_raptor", "brush_rat", "wire_hound"):
+        tail = sample_bezier(
+            (cx - int(58 * sc), cy + int(6 * sc)),
+            (cx - int(88 * sc), cy - int(10 * sc)),
+            (cx - int(100 * sc), cy + int(18 * sc)),
+            (cx - int(110 * sc), cy + int(2 * sc)),
+            18,
+        )
+        img = organic_ribbon(img, tail, 16 * sc, 4 * sc, rgba(dark), seed + 7, 1.4)
+    elif cid == "ember_pup":
+        tail = sample_bezier(
+            (cx - int(50 * sc), cy + int(4 * sc)),
+            (cx - int(80 * sc), cy - int(28 * sc)),
+            (cx - int(70 * sc), cy + int(12 * sc)),
+            (cx - int(95 * sc), cy - int(5 * sc)),
+            16,
+        )
+        img = organic_ribbon(img, tail, 14 * sc, 3 * sc, rgba(shade(c, 0.1)), seed + 3, 1.3)
+
+    torso_anchors = [
+        (cx - int(74 * sc), cy + int(42 * sc)),
+        (cx - int(68 * sc), cy - int(10 * sc)),
+        (cx - int(42 * sc), cy - int(32 * sc)),
+        (cx + int(8 * sc), cy - int(36 * sc)),
+        (cx + int(46 * sc), cy - int(22 * sc)),
+        (cx + int(72 * sc), cy + int(8 * sc)),
+        (cx + int(64 * sc), cy + int(46 * sc)),
+        (cx + int(20 * sc), cy + int(52 * sc)),
+        (cx - int(30 * sc), cy + int(50 * sc)),
+    ]
+    img = organic_blob(img, torso_anchors, rgba(c), seed, 1.6, 1.8)
+    radial_shade(img, cx - 8 * sc, cy + 4 * sc, 68 * sc, 42 * sc, c, strength=0.62)
+    img = soft_path_fill(
         img,
-        [cx - int(16 * sc), cy - int(28 * sc), cx + int(16 * sc), cy - int(8 * sc)],
-        rgba(shade(c, -0.15)),
+        spline_closed(
+            [
+                (cx - int(38 * sc), cy - int(6 * sc)),
+                (cx - int(10 * sc), cy - int(18 * sc)),
+                (cx + int(22 * sc), cy - int(8 * sc)),
+                (cx + int(12 * sc), cy + int(22 * sc)),
+                (cx - int(24 * sc), cy + int(18 * sc)),
+            ]
+        ),
+        rgba(light, 75),
+        3.2,
+    )
+
+    head_anchors = [
+        (cx - int(50 * sc), cy - int(8 * sc)),
+        (cx - int(46 * sc), cy - int(48 * sc)),
+        (cx - int(22 * sc), cy - int(82 * sc)),
+        (cx + int(18 * sc), cy - int(86 * sc)),
+        (cx + int(44 * sc), cy - int(58 * sc)),
+        (cx + int(48 * sc), cy - int(22 * sc)),
+        (cx + int(32 * sc), cy - int(4 * sc)),
+        (cx - int(10 * sc), cy + int(2 * sc)),
+    ]
+    img = organic_blob(img, head_anchors, rgba(c), seed + 11, 1.5, 1.5)
+    radial_shade(img, cx - 6 * sc, cy - 48 * sc, 46 * sc, 38 * sc, c, strength=0.65)
+
+    for side in (-1, 1):
+        base = (cx + int(28 * sc * side), cy - int(62 * sc))
+        tip = (cx + int(54 * sc * side), cy - int(108 * sc))
+        inner = (cx + int(36 * sc * side), cy - int(76 * sc))
+        outer = (cx + int(48 * sc * side), cy - int(104 * sc))
+        ear = sample_bezier(base, (cx + int(38 * sc * side), cy - int(96 * sc)), outer, tip, 14)
+        ear += sample_bezier(tip, (cx + int(40 * sc * side), cy - int(72 * sc)), inner, base, 14)
+        img = soft_path_fill(img, wobble_points(ear, seed + side * 20, 1.0), rgba(dark), 1.0)
+        inner_ear = sample_bezier(
+            (cx + int(30 * sc * side), cy - int(68 * sc)),
+            (cx + int(42 * sc * side), cy - int(94 * sc)),
+            (cx + int(38 * sc * side), cy - int(78 * sc)),
+            (cx + int(32 * sc * side), cy - int(72 * sc)),
+            10,
+        )
+        img = soft_path_fill(img, inner_ear, rgba(shade(c, 0.12), 170), 0.8)
+
+    img = draw_eyes(img, cx, cy - int(52 * sc), int(18 * sc), int(9 * sc), glow=glow, accent=accent)
+    img = soft_path_fill(
+        img,
+        spline_closed(
+            [
+                (cx - int(18 * sc), cy - int(28 * sc)),
+                (cx + int(24 * sc), cy - int(30 * sc)),
+                (cx + int(28 * sc), cy - int(14 * sc)),
+                (cx + int(8 * sc), cy - int(6 * sc)),
+                (cx - int(12 * sc), cy - int(8 * sc)),
+            ]
+        ),
+        rgba(shade(c, -0.12)),
         1.0,
     )
     d = ImageDraw.Draw(img)
     d.ellipse(
-        [cx - int(6 * sc), cy - int(20 * sc), cx + int(6 * sc), cy - int(12 * sc)],
+        [cx - int(5 * sc), cy - int(18 * sc), cx + int(10 * sc), cy - int(11 * sc)],
         fill=rgba(shade(c, -0.45)),
     )
-    # element cheek marks
-    img = soft_blob(
-        img,
-        [cx - int(52 * sc), cy - int(44 * sc), cx - int(30 * sc), cy - int(24 * sc)],
-        rgba(accent, 110),
-        2.0,
-    )
-    img = soft_blob(
-        img,
-        [cx + int(30 * sc), cy - int(44 * sc), cx + int(52 * sc), cy - int(24 * sc)],
-        rgba(accent, 110),
-        2.0,
-    )
+    for side in (-1, 1):
+        img = soft_path_fill(
+            img,
+            spline_closed(
+                [
+                    (cx + int(30 * sc * side), cy - int(42 * sc)),
+                    (cx + int(48 * sc * side), cy - int(36 * sc)),
+                    (cx + int(44 * sc * side), cy - int(22 * sc)),
+                    (cx + int(28 * sc * side), cy - int(26 * sc)),
+                ]
+            ),
+            rgba(accent, 100),
+            2.2,
+        )
     if "fire" in elements:
-        img = soft_poly(
-            img,
-            [
-                (cx + int(50 * sc), cy - int(10 * sc)),
-                (cx + int(88 * sc), cy - int(48 * sc)),
-                (cx + int(70 * sc), cy + int(8 * sc)),
-                (cx + int(96 * sc), cy + int(20 * sc)),
-                (cx + int(48 * sc), cy + int(18 * sc)),
-            ],
-            (255, 140, 30, 210),
-            1.5,
-        )
-        img = soft_poly(
-            img,
-            [
-                (cx + int(58 * sc), cy - int(6 * sc)),
-                (cx + int(78 * sc), cy - int(28 * sc)),
-                (cx + int(66 * sc), cy + int(6 * sc)),
-            ],
-            (255, 230, 120, 180),
-            1.0,
-        )
+        img = flame_tendrils(img, cx + int(40 * sc), cy - int(8 * sc), sc, accent, seed)
     if "electric" in elements:
-        img = soft_poly(
-            img,
-            [
-                (cx + int(44 * sc), cy - int(70 * sc)),
-                (cx + int(78 * sc), cy - int(40 * sc)),
-                (cx + int(52 * sc), cy - int(36 * sc)),
-                (cx + int(70 * sc), cy - int(8 * sc)),
-                (cx + int(40 * sc), cy - int(28 * sc)),
-            ],
-            rgba(accent, 230),
-            0.8,
-        )
+        img = electric_arc(img, cx + int(32 * sc), cy - int(58 * sc), sc, accent, seed)
+    if cid == "thorn_boar":
+        for i in range(6):
+            bx = cx - int(30 * sc) + i * int(12 * sc)
+            bristle = sample_bezier(
+                (bx, cy - int(34 * sc)),
+                (bx + int(4 * sc), cy - int(52 * sc)),
+                (bx - int(2 * sc), cy - int(48 * sc)),
+                (bx, cy - int(38 * sc)),
+                8,
+            )
+            img = organic_ribbon(img, bristle, 5 * sc, 2 * sc, rgba(dark), seed + i, 0.7)
+    if cid == "frost_hare":
+        for side in (-1, 1):
+            ear_line = sample_bezier(
+                (cx + int(18 * sc * side), cy - int(58 * sc)),
+                (cx + int(28 * sc * side), cy - int(110 * sc)),
+                (cx + int(22 * sc * side), cy - int(118 * sc)),
+                (cx + int(14 * sc * side), cy - int(70 * sc)),
+                16,
+            )
+            img = organic_ribbon(img, ear_line, 9 * sc, 5 * sc, rgba(light), seed + side, 1.0)
     fur_noise(img, c, density=0.028, seed=seed)
     return finish(img)
 
 
-def make_fish(base, elements, boss=False, seed=1) -> Image.Image:
+def make_fish(base, elements, boss=False, seed=1, cid="") -> Image.Image:
     s = BOSS_SIZE if boss else SIZE
     img = new_img(s)
     img = ground_shadow(img, s, 0.74, 0.34, 0.06)
@@ -404,39 +562,57 @@ def make_fish(base, elements, boss=False, seed=1) -> Image.Image:
     dark, light = shade(c, -0.28), shade(c, 0.32)
     cx, cy = int(s * 0.46), s // 2
     sc = s / 256.0
-    img = soft_blob(img, [cx - int(78 * sc), cy - int(40 * sc), cx + int(64 * sc), cy + int(40 * sc)], rgba(c), 2.0)
+    body = spline_closed(
+        [
+            (cx - int(78 * sc), cy - int(6 * sc)),
+            (cx - int(70 * sc), cy - int(38 * sc)),
+            (cx - int(20 * sc), cy - int(44 * sc)),
+            (cx + int(40 * sc), cy - int(28 * sc)),
+            (cx + int(58 * sc), cy - int(4 * sc)),
+            (cx + int(52 * sc), cy + int(28 * sc)),
+            (cx + int(10 * sc), cy + int(42 * sc)),
+            (cx - int(40 * sc), cy + int(36 * sc)),
+            (cx - int(72 * sc), cy + int(14 * sc)),
+        ]
+    )
+    img = soft_path_fill(img, wobble_points(body, seed, 1.4), rgba(c), 1.8)
     radial_shade(img, cx - 10 * sc, cy, 78 * sc, 40 * sc, c, light_dir=(-0.6, -0.3), strength=0.7)
-    # wet highlight streak
-    img = soft_blob(
+    img = soft_path_fill(
         img,
-        [cx - int(50 * sc), cy - int(28 * sc), cx + int(10 * sc), cy - int(4 * sc)],
+        spline_closed(
+            [
+                (cx - int(48 * sc), cy - int(22 * sc)),
+                (cx - int(10 * sc), cy - int(28 * sc)),
+                (cx + int(8 * sc), cy - int(12 * sc)),
+                (cx - int(18 * sc), cy - int(4 * sc)),
+            ]
+        ),
         rgba(light, 100),
         3.5,
     )
-    # tail
-    img = soft_poly(
-        img,
-        [
-            (cx + int(50 * sc), cy),
-            (cx + int(110 * sc), cy - int(42 * sc)),
-            (cx + int(92 * sc), cy),
-            (cx + int(110 * sc), cy + int(42 * sc)),
-        ],
-        rgba(dark),
-        1.4,
+    tail_upper = sample_bezier(
+        (cx + int(52 * sc), cy - int(8 * sc)),
+        (cx + int(88 * sc), cy - int(38 * sc)),
+        (cx + int(108 * sc), cy - int(18 * sc)),
+        (cx + int(112 * sc), cy),
+        16,
     )
-    radial_shade(img, cx + 85 * sc, cy, 30 * sc, 40 * sc, dark, strength=0.45)
-    # dorsal
-    img = soft_poly(
-        img,
-        [
-            (cx - int(10 * sc), cy - int(36 * sc)),
-            (cx + int(24 * sc), cy - int(78 * sc)),
-            (cx + int(36 * sc), cy - int(28 * sc)),
-        ],
-        rgba(shade(c, 0.05)),
-        1.2,
+    tail_lower = sample_bezier(
+        (cx + int(112 * sc), cy),
+        (cx + int(108 * sc), cy + int(18 * sc)),
+        (cx + int(88 * sc), cy + int(38 * sc)),
+        (cx + int(52 * sc), cy + int(8 * sc)),
+        16,
     )
+    img = soft_path_fill(img, tail_upper + list(reversed(tail_lower)), rgba(dark), 1.4)
+    dorsal = sample_bezier(
+        (cx - int(8 * sc), cy - int(34 * sc)),
+        (cx + int(12 * sc), cy - int(62 * sc)),
+        (cx + int(28 * sc), cy - int(70 * sc)),
+        (cx + int(38 * sc), cy - int(30 * sc)),
+        14,
+    )
+    img = organic_ribbon(img, dorsal, 14 * sc, 4 * sc, rgba(shade(c, 0.05)), seed, 1.2)
     el = elements[0] if elements else "water"
     accent = ELEMENT_ACCENT.get(el, light)
     img = draw_eyes(img, cx - int(36 * sc), cy - int(6 * sc), 0, int(11 * sc), glow=False, accent=accent)
@@ -445,24 +621,20 @@ def make_fish(base, elements, boss=False, seed=1) -> Image.Image:
         [cx - int(54 * sc), cy + int(4 * sc), cx - int(34 * sc), cy + int(14 * sc)],
         fill=(12, 24, 40, 200),
     )
-    # scale rows
     scale_flecks(img, accent, seed=seed)
     for i in range(7):
-        img = soft_blob(
-            img,
-            [
-                cx - int(20 * sc) + int(i * 12 * sc),
-                cy - int(8 * sc),
-                cx - int(8 * sc) + int(i * 12 * sc),
-                cy + int(4 * sc),
-            ],
-            rgba(light, 70),
-            1.5,
+        row = sample_bezier(
+            (cx - int(20 * sc) + int(i * 12 * sc), cy - int(8 * sc)),
+            (cx - int(14 * sc) + int(i * 12 * sc), cy - int(14 * sc)),
+            (cx - int(6 * sc) + int(i * 12 * sc), cy - int(10 * sc)),
+            (cx - int(8 * sc) + int(i * 12 * sc), cy + int(4 * sc)),
+            6,
         )
+        img = organic_ribbon(img, row, 5 * sc, 3 * sc, rgba(light, 70), seed + i, 1.5)
     return finish(img)
 
 
-def make_plant(base, elements, boss=False, seed=1) -> Image.Image:
+def make_plant(base, elements, boss=False, seed=1, cid="") -> Image.Image:
     s = BOSS_SIZE if boss else SIZE
     img = new_img(s)
     img = ground_shadow(img, s)
@@ -470,39 +642,92 @@ def make_plant(base, elements, boss=False, seed=1) -> Image.Image:
     dark, light = shade(c, -0.3), shade(c, 0.25)
     cx, cy = s // 2, int(s * 0.58)
     sc = s / 256.0
-    # pot body
-    img = soft_blob(img, [cx - int(52 * sc), cy - int(8 * sc), cx + int(52 * sc), cy + int(58 * sc)], rgba(dark), 1.8)
+    pot = spline_closed(
+        [
+            (cx - int(52 * sc), cy + int(50 * sc)),
+            (cx - int(48 * sc), cy - int(4 * sc)),
+            (cx - int(28 * sc), cy - int(10 * sc)),
+            (cx + int(28 * sc), cy - int(10 * sc)),
+            (cx + int(48 * sc), cy - int(4 * sc)),
+            (cx + int(52 * sc), cy + int(50 * sc)),
+            (cx + int(20 * sc), cy + int(58 * sc)),
+            (cx - int(20 * sc), cy + int(58 * sc)),
+        ]
+    )
+    img = soft_path_fill(img, pot, rgba(dark), 1.8)
     radial_shade(img, cx, cy + 24 * sc, 52 * sc, 34 * sc, dark, strength=0.5)
-    img = soft_blob(img, [cx - int(42 * sc), cy + int(4 * sc), cx + int(42 * sc), cy + int(46 * sc)], rgba(c), 1.4)
-    # stem
-    img = soft_blob(img, [cx - int(10 * sc), cy - int(70 * sc), cx + int(10 * sc), cy + int(8 * sc)], rgba(shade(c, -0.1)), 1.0)
-    # leaves
-    img = soft_blob(img, [cx - int(70 * sc), cy - int(120 * sc), cx + int(8 * sc), cy - int(40 * sc)], rgba(c), 2.2)
-    img = soft_blob(img, [cx - int(8 * sc), cy - int(120 * sc), cx + int(70 * sc), cy - int(40 * sc)], rgba(light), 2.2)
-    img = soft_blob(img, [cx - int(34 * sc), cy - int(140 * sc), cx + int(34 * sc), cy - int(70 * sc)], rgba(shade(c, 0.12)), 2.0)
+    img = organic_blob(
+        img,
+        [
+            (cx - int(40 * sc), cy + int(44 * sc)),
+            (cx - int(36 * sc), cy + int(8 * sc)),
+            (cx + int(36 * sc), cy + int(8 * sc)),
+            (cx + int(40 * sc), cy + int(44 * sc)),
+        ],
+        rgba(c),
+        seed,
+        1.4,
+        1.0,
+    )
+    stem = sample_bezier(
+        (cx - int(6 * sc), cy + int(6 * sc)),
+        (cx - int(4 * sc), cy - int(30 * sc)),
+        (cx + int(4 * sc), cy - int(50 * sc)),
+        (cx, cy - int(68 * sc)),
+        18,
+    )
+    img = organic_ribbon(img, stem, 9 * sc, 6 * sc, rgba(shade(c, -0.1)), seed + 2, 1.0)
+    for side, tilt in [(-1, -18), (1, 18)]:
+        leaf = sample_bezier(
+            (cx + int(4 * sc * side), cy - int(50 * sc)),
+            (cx + int(58 * sc * side), cy - int(110 * sc)),
+            (cx + int(72 * sc * side), cy - int(70 * sc)),
+            (cx + int(20 * sc * side), cy - int(42 * sc)),
+            20,
+        )
+        leaf += sample_bezier(
+            (cx + int(20 * sc * side), cy - int(42 * sc)),
+            (cx + int(48 * sc * side), cy - int(78 * sc)),
+            (cx + int(36 * sc * side), cy - int(88 * sc)),
+            (cx + int(6 * sc * side), cy - int(54 * sc)),
+            16,
+        )
+        col = rgba(c if side < 0 else light)
+        img = soft_path_fill(img, wobble_points(leaf, seed + tilt, 1.4), col, 2.0)
+    crown = spline_closed(
+        [
+            (cx - int(30 * sc), cy - int(132 * sc)),
+            (cx - int(8 * sc), cy - int(152 * sc)),
+            (cx + int(8 * sc), cy - int(152 * sc)),
+            (cx + int(30 * sc), cy - int(132 * sc)),
+            (cx + int(16 * sc), cy - int(118 * sc)),
+            (cx - int(16 * sc), cy - int(118 * sc)),
+        ]
+    )
+    img = soft_path_fill(img, crown, rgba(shade(c, 0.12)), 2.0)
     radial_shade(img, cx - 20 * sc, cy - 80 * sc, 40 * sc, 40 * sc, c, strength=0.55)
     radial_shade(img, cx + 20 * sc, cy - 80 * sc, 40 * sc, 40 * sc, light, strength=0.55)
     el = elements[0] if elements else "nature"
     accent = ELEMENT_ACCENT.get(el, (230, 190, 90))
     img = draw_eyes(img, cx, cy - int(96 * sc), int(16 * sc), int(7 * sc), accent=accent)
-    # blossom
-    img = soft_blob(
+    img = organic_blob(
         img,
-        [cx - int(14 * sc), cy - int(152 * sc), cx + int(14 * sc), cy - int(124 * sc)],
+        [
+            (cx - int(12 * sc), cy - int(148 * sc)),
+            (cx - int(8 * sc), cy - int(158 * sc)),
+            (cx + int(8 * sc), cy - int(158 * sc)),
+            (cx + int(12 * sc), cy - int(148 * sc)),
+        ],
         (240, 200, 90, 230),
-        1.5,
-    )
-    img = soft_blob(
-        img,
-        [cx - int(6 * sc), cy - int(144 * sc), cx + int(6 * sc), cy - int(132 * sc)],
-        (255, 240, 180, 220),
-        1.0,
+        seed + 5,
+        1.2,
+        0.8,
     )
     fur_noise(img, c, density=0.018, seed=seed)
     return finish(img)
 
 
-def make_bird(base, elements, boss=False, seed=1) -> Image.Image:
+def make_bird(base, elements, boss=False, seed=1, cid="") -> Image.Image:
     s = BOSS_SIZE if boss else SIZE
     img = new_img(s)
     img = ground_shadow(img, s, 0.78)
@@ -510,48 +735,102 @@ def make_bird(base, elements, boss=False, seed=1) -> Image.Image:
     dark, light = shade(c, -0.25), shade(c, 0.3)
     cx, cy = s // 2, int(s * 0.5)
     sc = s / 256.0
-    # wings
-    img = soft_blob(img, [cx - int(118 * sc), cy - int(20 * sc), cx - int(8 * sc), cy + int(55 * sc)], rgba(dark, 235), 2.4)
-    img = soft_blob(img, [cx + int(8 * sc), cy - int(20 * sc), cx + int(118 * sc), cy + int(55 * sc)], rgba(dark, 235), 2.4)
-    radial_shade(img, cx - 60 * sc, cy + 10 * sc, 55 * sc, 35 * sc, dark, strength=0.5)
-    radial_shade(img, cx + 60 * sc, cy + 10 * sc, 55 * sc, 35 * sc, dark, strength=0.5)
-    img = soft_blob(img, [cx - int(100 * sc), cy - int(4 * sc), cx - int(30 * sc), cy + int(28 * sc)], rgba(light, 90), 3.0)
-    img = soft_blob(img, [cx + int(30 * sc), cy - int(4 * sc), cx + int(100 * sc), cy + int(28 * sc)], rgba(light, 90), 3.0)
-    # body + head
-    img = soft_blob(img, [cx - int(44 * sc), cy - int(16 * sc), cx + int(44 * sc), cy + int(60 * sc)], rgba(c), 1.8)
+    for side in (-1, 1):
+        wing_outer = sample_bezier(
+            (cx + int(8 * sc * side), cy - int(18 * sc)),
+            (cx + int(90 * sc * side), cy - int(8 * sc)),
+            (cx + int(118 * sc * side), cy + int(38 * sc)),
+            (cx + int(24 * sc * side), cy + int(48 * sc)),
+            22,
+        )
+        wing_inner = sample_bezier(
+            (cx + int(24 * sc * side), cy + int(48 * sc)),
+            (cx + int(70 * sc * side), cy + int(18 * sc)),
+            (cx + int(50 * sc * side), cy - int(4 * sc)),
+            (cx + int(12 * sc * side), cy - int(8 * sc)),
+            18,
+        )
+        img = soft_path_fill(img, wing_outer + list(reversed(wing_inner)), rgba(dark, 235), 2.2)
+        for i in range(4):
+            feather = sample_bezier(
+                (cx + int((20 + i * 18) * sc * side), cy + int((8 - i * 4) * sc)),
+                (cx + int((50 + i * 16) * sc * side), cy + int((20 - i * 6) * sc)),
+                (cx + int((70 + i * 10) * sc * side), cy + int((10 - i * 2) * sc)),
+                (cx + int((40 + i * 14) * sc * side), cy + int((28 - i * 5) * sc)),
+                10,
+            )
+            img = organic_ribbon(img, feather, 8 * sc, 2 * sc, rgba(light, 90), seed + i * side, 2.5)
+    body = spline_closed(
+        [
+            (cx - int(40 * sc), cy + int(52 * sc)),
+            (cx - int(44 * sc), cy - int(8 * sc)),
+            (cx - int(18 * sc), cy - int(28 * sc)),
+            (cx + int(18 * sc), cy - int(28 * sc)),
+            (cx + int(44 * sc), cy - int(8 * sc)),
+            (cx + int(40 * sc), cy + int(52 * sc)),
+            (cx, cy + int(58 * sc)),
+        ]
+    )
+    img = soft_path_fill(img, wobble_points(body, seed, 1.2), rgba(c), 1.8)
     radial_shade(img, cx, cy + 18 * sc, 44 * sc, 40 * sc, c, strength=0.6)
-    img = soft_blob(img, [cx - int(38 * sc), cy - int(78 * sc), cx + int(38 * sc), cy - int(4 * sc)], rgba(c), 1.6)
-    radial_shade(img, cx - 4 * sc, cy - 42 * sc, 38 * sc, 36 * sc, c, strength=0.65)
-    # beak
-    img = soft_poly(
+    head = organic_blob(
         img,
         [
-            (cx - int(4 * sc), cy - int(34 * sc)),
-            (cx + int(36 * sc), cy - int(26 * sc)),
-            (cx - int(4 * sc), cy - int(16 * sc)),
+            (cx - int(36 * sc), cy - int(6 * sc)),
+            (cx - int(34 * sc), cy - int(52 * sc)),
+            (cx - int(8 * sc), cy - int(78 * sc)),
+            (cx + int(22 * sc), cy - int(72 * sc)),
+            (cx + int(36 * sc), cy - int(38 * sc)),
+            (cx + int(28 * sc), cy - int(8 * sc)),
         ],
-        (240, 180, 60, 255),
-        0.8,
+        rgba(c),
+        seed + 3,
+        1.5,
+        1.2,
     )
+    img = head
+    radial_shade(img, cx - 4 * sc, cy - 42 * sc, 38 * sc, 36 * sc, c, strength=0.65)
+    beak = sample_bezier(
+        (cx - int(4 * sc), cy - int(32 * sc)),
+        (cx + int(18 * sc), cy - int(30 * sc)),
+        (cx + int(38 * sc), cy - int(24 * sc)),
+        (cx + int(4 * sc), cy - int(14 * sc)),
+        12,
+    )
+    beak += sample_bezier(
+        (cx + int(4 * sc), cy - int(14 * sc)),
+        (cx + int(30 * sc), cy - int(18 * sc)),
+        (cx + int(20 * sc), cy - int(22 * sc)),
+        (cx - int(4 * sc), cy - int(24 * sc)),
+        10,
+    )
+    img = soft_path_fill(img, beak, (240, 180, 60, 255), 0.8)
     el = elements[0] if elements else "wind"
     accent = ELEMENT_ACCENT.get(el, light)
     img = draw_eyes(img, cx - int(8 * sc), cy - int(48 * sc), int(14 * sc), int(7 * sc), accent=accent)
-    # crest
-    img = soft_poly(
-        img,
-        [
-            (cx - int(10 * sc), cy - int(74 * sc)),
-            (cx + int(2 * sc), cy - int(112 * sc)),
-            (cx + int(20 * sc), cy - int(74 * sc)),
-        ],
-        rgba(accent, 230),
-        1.0,
+    crest = sample_bezier(
+        (cx - int(10 * sc), cy - int(72 * sc)),
+        (cx + int(2 * sc), cy - int(112 * sc)),
+        (cx + int(14 * sc), cy - int(108 * sc)),
+        (cx + int(20 * sc), cy - int(74 * sc)),
+        14,
     )
+    img = organic_ribbon(img, crest, 8 * sc, 3 * sc, rgba(accent, 230), seed + 9, 1.0)
+    if cid == "spore_bat":
+        for side in (-1, 1):
+            mem = sample_bezier(
+                (cx + int(30 * sc * side), cy - int(20 * sc)),
+                (cx + int(70 * sc * side), cy - int(48 * sc)),
+                (cx + int(50 * sc * side), cy - int(30 * sc)),
+                (cx + int(36 * sc * side), cy - int(18 * sc)),
+                12,
+            )
+            img = organic_ribbon(img, mem, 6 * sc, 2 * sc, rgba(accent, 160), seed + side, 1.2)
     fur_noise(img, c, density=0.024, seed=seed)
     return finish(img)
 
 
-def make_bug(base, elements, boss=False, seed=1) -> Image.Image:
+def make_bug(base, elements, boss=False, seed=1, cid="") -> Image.Image:
     s = BOSS_SIZE if boss else SIZE
     img = new_img(s)
     img = ground_shadow(img, s)
@@ -559,59 +838,84 @@ def make_bug(base, elements, boss=False, seed=1) -> Image.Image:
     dark, light = shade(c, -0.28), shade(c, 0.22)
     cx, cy = s // 2, int(s * 0.5)
     sc = s / 256.0
-    # legs
-    dlayer = new_img(s)
-    dd = ImageDraw.Draw(dlayer)
     for ang in (-55, -25, 25, 55):
         rad = math.radians(ang)
         x2 = cx + int(math.cos(rad) * 92 * sc)
         y2 = cy + int(28 * sc + math.sin(rad) * 18 * sc)
-        dd.line([(cx, cy + int(10 * sc)), (x2, y2)], fill=rgba(dark), width=max(3, int(5 * sc)))
-        dd.ellipse([x2 - 5, y2 - 5, x2 + 5, y2 + 5], fill=rgba(dark))
-    dlayer = dlayer.filter(ImageFilter.GaussianBlur(0.7))
-    img = Image.alpha_composite(img, dlayer)
-    # abdomen + thorax + head
-    img = soft_blob(img, [cx - int(56 * sc), cy - int(8 * sc), cx + int(56 * sc), cy + int(52 * sc)], rgba(c), 1.8)
-    radial_shade(img, cx, cy + 20 * sc, 56 * sc, 32 * sc, c, strength=0.55)
-    img = soft_blob(img, [cx - int(36 * sc), cy - int(48 * sc), cx + int(36 * sc), cy + int(8 * sc)], rgba(shade(c, 0.05)), 1.5)
-    radial_shade(img, cx, cy - 20 * sc, 36 * sc, 28 * sc, shade(c, 0.05), strength=0.55)
-    # carapace gloss
-    img = soft_blob(
-        img,
-        [cx - int(24 * sc), cy - int(36 * sc), cx + int(8 * sc), cy - int(8 * sc)],
-        rgba(light, 110),
-        2.8,
+        leg = sample_bezier(
+            (cx, cy + int(10 * sc)),
+            (cx + int(math.cos(rad) * 40 * sc), cy + int(18 * sc)),
+            (x2 - int(6 * sc), y2 - int(8 * sc)),
+            (x2, y2),
+            14,
+        )
+        img = organic_ribbon(img, leg, 6 * sc, 3 * sc, rgba(dark), seed + ang, 0.7)
+    segments = [
+        (cx - int(58 * sc), cy + int(44 * sc), 56 * sc, 32 * sc, dark),
+        (cx - int(40 * sc), cy + int(4 * sc), 40 * sc, 28 * sc, c),
+        (cx - int(34 * sc), cy - int(36 * sc), 34 * sc, 26 * sc, shade(c, 0.05)),
+    ]
+    for i, (sx, sy, rx, ry, col) in enumerate(segments):
+        seg = spline_closed(
+            [
+                (sx, sy),
+                (sx + int(rx * 1.6), sy - int(ry * 0.4)),
+                (sx + int(rx * 2.2), sy + int(ry * 0.2)),
+                (sx + int(rx * 1.4), sy + int(ry * 1.2)),
+                (sx - int(rx * 0.2), sy + int(ry * 1.0)),
+            ]
+        )
+        img = soft_path_fill(img, wobble_points(seg, seed + i * 3, 1.2), rgba(col), 1.5)
+        radial_shade(img, sx + rx, sy + ry * 0.4, rx, ry, col, strength=0.5)
+    gloss = spline_closed(
+        [
+            (cx - int(22 * sc), cy - int(34 * sc)),
+            (cx - int(6 * sc), cy - int(42 * sc)),
+            (cx + int(10 * sc), cy - int(30 * sc)),
+            (cx - int(4 * sc), cy - int(18 * sc)),
+        ]
     )
+    img = soft_path_fill(img, gloss, rgba(light, 110), 2.8)
     el = elements[0] if elements else "poison"
     accent = ELEMENT_ACCENT.get(el, light)
     glow = el in ("poison", "shadow", "electric")
     img = draw_eyes(img, cx, cy - int(24 * sc), int(14 * sc), int(8 * sc), glow=glow, accent=accent)
-    # mandibles
-    img = soft_poly(
-        img,
-        [
-            (cx - int(28 * sc), cy - int(8 * sc)),
-            (cx - int(8 * sc), cy + int(18 * sc)),
-            (cx - int(4 * sc), cy - int(2 * sc)),
-        ],
-        rgba(dark),
-        0.7,
-    )
-    img = soft_poly(
-        img,
-        [
-            (cx + int(28 * sc), cy - int(8 * sc)),
-            (cx + int(8 * sc), cy + int(18 * sc)),
-            (cx + int(4 * sc), cy - int(2 * sc)),
-        ],
-        rgba(dark),
-        0.7,
-    )
+    for side in (-1, 1):
+        mand = sample_bezier(
+            (cx + int(20 * sc * side), cy - int(6 * sc)),
+            (cx + int(32 * sc * side), cy + int(12 * sc)),
+            (cx + int(10 * sc * side), cy + int(16 * sc)),
+            (cx + int(4 * sc * side), cy - int(2 * sc)),
+            10,
+        )
+        img = organic_ribbon(img, mand, 5 * sc, 2 * sc, rgba(dark), seed + side, 0.7)
+    if cid == "cinder_scorp":
+        tail = sample_bezier(
+            (cx + int(48 * sc), cy + int(20 * sc)),
+            (cx + int(78 * sc), cy - int(10 * sc)),
+            (cx + int(98 * sc), cy - int(38 * sc)),
+            (cx + int(108 * sc), cy - int(58 * sc)),
+            18,
+        )
+        img = organic_ribbon(img, tail, 10 * sc, 3 * sc, rgba(dark), seed + 20, 1.0)
+        img = organic_blob(
+            img,
+            [
+                (cx + int(100 * sc), cy - int(64 * sc)),
+                (cx + int(112 * sc), cy - int(72 * sc)),
+                (cx + int(116 * sc), cy - int(58 * sc)),
+                (cx + int(106 * sc), cy - int(52 * sc)),
+            ],
+            rgba(accent, 220),
+            seed + 21,
+            1.0,
+            0.6,
+        )
     scale_flecks(img, accent, seed=seed)
     return finish(img)
 
 
-def make_serpent(base, elements, boss=False, seed=1) -> Image.Image:
+def make_serpent(base, elements, boss=False, seed=1, cid="") -> Image.Image:
     s = BOSS_SIZE if boss else SIZE
     img = new_img(s)
     img = ground_shadow(img, s, 0.84, 0.36, 0.06)
@@ -619,19 +923,68 @@ def make_serpent(base, elements, boss=False, seed=1) -> Image.Image:
     dark, light = shade(c, -0.32), shade(c, 0.24)
     cx = s // 2
     sc = s / 256.0
-    # coils
-    img = soft_blob(img, [cx - int(78 * sc), int(140 * sc), cx + int(78 * sc), int(230 * sc)], rgba(dark), 2.2)
-    radial_shade(img, cx, 185 * sc, 78 * sc, 40 * sc, dark, strength=0.45)
-    img = soft_blob(img, [cx - int(58 * sc), int(110 * sc), cx + int(70 * sc), int(190 * sc)], rgba(c), 2.0)
-    radial_shade(img, cx + 4 * sc, 150 * sc, 64 * sc, 40 * sc, c, strength=0.55)
-    img = soft_blob(img, [cx - int(42 * sc), int(72 * sc), cx + int(48 * sc), int(145 * sc)], rgba(shade(c, 0.06)), 1.8)
-    # neck + head
-    img = soft_blob(img, [cx - int(28 * sc), int(36 * sc), cx + int(36 * sc), int(100 * sc)], rgba(c), 1.6)
-    img = soft_blob(img, [cx - int(44 * sc), int(8 * sc), cx + int(50 * sc), int(78 * sc)], rgba(c), 1.8)
-    radial_shade(img, cx + 2 * sc, 42 * sc, 46 * sc, 36 * sc, c, strength=0.7)
-    img = soft_blob(
+    coils = [
+        sample_bezier(
+            (cx - int(78 * sc), int(200 * sc)),
+            (cx - int(20 * sc), int(230 * sc)),
+            (cx + int(40 * sc), int(210 * sc)),
+            (cx + int(70 * sc), int(170 * sc)),
+            24,
+        ),
+        sample_bezier(
+            (cx + int(70 * sc), int(170 * sc)),
+            (cx + int(30 * sc), int(140 * sc)),
+            (cx - int(30 * sc), int(150 * sc)),
+            (cx - int(58 * sc), int(120 * sc)),
+            24,
+        ),
+        sample_bezier(
+            (cx - int(58 * sc), int(120 * sc)),
+            (cx - int(10 * sc), int(100 * sc)),
+            (cx + int(36 * sc), int(88 * sc)),
+            (cx + int(28 * sc), int(58 * sc)),
+            22,
+        ),
+    ]
+    widths = [22 * sc, 18 * sc, 14 * sc]
+    for i, coil in enumerate(coils):
+        col = dark if i == 0 else (c if i == 1 else shade(c, 0.06))
+        img = organic_ribbon(img, coil, widths[i], widths[i] * 0.65, rgba(col), seed + i, 1.6)
+    neck = sample_bezier(
+        (cx + int(28 * sc), int(58 * sc)),
+        (cx + int(18 * sc), int(38 * sc)),
+        (cx + int(8 * sc), int(22 * sc)),
+        (cx + int(12 * sc), int(8 * sc)),
+        18,
+    )
+    img = organic_ribbon(img, neck, 16 * sc, 12 * sc, rgba(c), seed + 4, 1.4)
+    head = organic_blob(
         img,
-        [cx - int(28 * sc), int(16 * sc), cx + int(16 * sc), int(52 * sc)],
+        [
+            (cx - int(38 * sc), int(48 * sc)),
+            (cx - int(28 * sc), int(12 * sc)),
+            (cx + int(8 * sc), int(4 * sc)),
+            (cx + int(44 * sc), int(18 * sc)),
+            (cx + int(48 * sc), int(52 * sc)),
+            (cx + int(16 * sc), int(68 * sc)),
+        ],
+        rgba(c),
+        seed + 5,
+        1.6,
+        1.4,
+    )
+    img = head
+    radial_shade(img, cx + 2 * sc, 42 * sc, 46 * sc, 36 * sc, c, strength=0.7)
+    img = soft_path_fill(
+        img,
+        spline_closed(
+            [
+                (cx - int(20 * sc), int(28 * sc)),
+                (cx + int(8 * sc), int(18 * sc)),
+                (cx + int(18 * sc), int(34 * sc)),
+                (cx - int(4 * sc), int(44 * sc)),
+            ]
+        ),
         rgba(light, 90),
         2.5,
     )
@@ -639,35 +992,45 @@ def make_serpent(base, elements, boss=False, seed=1) -> Image.Image:
     accent = ELEMENT_ACCENT.get(el, dark)
     glow = el in ("poison", "shadow", "fire")
     img = draw_eyes(img, cx + int(4 * sc), int(40 * sc), int(16 * sc), int(9 * sc), glow=glow, accent=accent)
-    # fangs / tongue
-    img = soft_poly(
-        img,
-        [
-            (cx + int(14 * sc), int(62 * sc)),
-            (cx + int(40 * sc), int(78 * sc)),
-            (cx + int(12 * sc), int(70 * sc)),
-        ],
-        (220, 60, 80, 230),
-        0.6,
+    fang = sample_bezier(
+        (cx + int(18 * sc), int(58 * sc)),
+        (cx + int(34 * sc), int(72 * sc)),
+        (cx + int(28 * sc), int(78 * sc)),
+        (cx + int(14 * sc), int(66 * sc)),
+        8,
     )
-    # dorsal diamonds
-    for y in (100, 130, 160, 190):
-        img = soft_poly(
-            img,
+    img = organic_ribbon(img, fang, 4 * sc, 1 * sc, (220, 60, 80, 230), seed + 6, 0.6)
+    for y in (110, 140, 170, 200):
+        mark = spline_closed(
             [
-                (cx, int((y - 10) * sc)),
-                (cx + int(16 * sc), int(y * sc)),
-                (cx, int((y + 10) * sc)),
-                (cx - int(16 * sc), int(y * sc)),
-            ],
-            rgba(accent, 150),
-            0.8,
+                (cx, int((y - 8) * sc)),
+                (cx + int(14 * sc), int(y * sc)),
+                (cx, int((y + 8) * sc)),
+                (cx - int(14 * sc), int(y * sc)),
+            ]
         )
+        img = soft_path_fill(img, wobble_points(mark, seed + y, 0.6), rgba(accent, 150), 0.8)
+    if cid in ("dread_basilisk", "basilisk"):
+        hood = sample_bezier(
+            (cx - int(48 * sc), int(36 * sc)),
+            (cx - int(72 * sc), int(8 * sc)),
+            (cx - int(20 * sc), int(2 * sc)),
+            (cx + int(8 * sc), int(10 * sc)),
+            16,
+        )
+        hood += sample_bezier(
+            (cx + int(8 * sc), int(10 * sc)),
+            (cx + int(52 * sc), int(4 * sc)),
+            (cx + int(68 * sc), int(28 * sc)),
+            (cx + int(44 * sc), int(40 * sc)),
+            16,
+        )
+        img = soft_path_fill(img, hood, rgba(shade(c, -0.15), 200), 1.4)
     scale_flecks(img, accent, seed=seed)
     return finish(img)
 
 
-def make_bulk(base, elements, boss=False, seed=1) -> Image.Image:
+def make_bulk(base, elements, boss=False, seed=1, cid="") -> Image.Image:
     s = BOSS_SIZE if boss else SIZE
     img = new_img(s)
     img = ground_shadow(img, s, 0.86, 0.38, 0.08)
@@ -675,25 +1038,68 @@ def make_bulk(base, elements, boss=False, seed=1) -> Image.Image:
     dark, light = shade(c, -0.3), shade(c, 0.22)
     cx, cy = s // 2, int(s * 0.54)
     sc = s / 256.0
-    # legs
-    img = soft_blob(img, [cx - int(70 * sc), cy + int(24 * sc), cx - int(18 * sc), cy + int(90 * sc)], rgba(dark), 1.8)
-    img = soft_blob(img, [cx + int(18 * sc), cy + int(24 * sc), cx + int(70 * sc), cy + int(90 * sc)], rgba(dark), 1.8)
-    radial_shade(img, cx - 44 * sc, cy + 55 * sc, 26 * sc, 32 * sc, dark, strength=0.4)
-    radial_shade(img, cx + 44 * sc, cy + 55 * sc, 26 * sc, 32 * sc, dark, strength=0.4)
-    # torso
-    img = soft_blob(img, [cx - int(90 * sc), cy - int(40 * sc), cx + int(90 * sc), cy + int(55 * sc)], rgba(c), 2.2)
+    for side in (-1, 1):
+        leg = sample_bezier(
+            (cx + int(44 * sc * side), cy + int(30 * sc)),
+            (cx + int(58 * sc * side), cy + int(58 * sc)),
+            (cx + int(48 * sc * side), cy + int(78 * sc)),
+            (cx + int(38 * sc * side), cy + int(88 * sc)),
+            14,
+        )
+        img = organic_ribbon(img, leg, 18 * sc, 12 * sc, rgba(dark), seed + side, 1.6)
+    torso = spline_closed(
+        [
+            (cx - int(88 * sc), cy + int(48 * sc)),
+            (cx - int(92 * sc), cy - int(18 * sc)),
+            (cx - int(48 * sc), cy - int(44 * sc)),
+            (cx + int(20 * sc), cy - int(46 * sc)),
+            (cx + int(72 * sc), cy - int(20 * sc)),
+            (cx + int(88 * sc), cy + int(28 * sc)),
+            (cx + int(60 * sc), cy + int(52 * sc)),
+            (cx - int(40 * sc), cy + int(54 * sc)),
+        ]
+    )
+    img = soft_path_fill(img, wobble_points(torso, seed, 1.6), rgba(c), 2.0)
     radial_shade(img, cx - 10 * sc, cy + 4 * sc, 90 * sc, 50 * sc, c, strength=0.62)
-    img = soft_blob(
+    img = soft_path_fill(
         img,
-        [cx - int(55 * sc), cy - int(28 * sc), cx + int(30 * sc), cy + int(20 * sc)],
+        spline_closed(
+            [
+                (cx - int(52 * sc), cy - int(22 * sc)),
+                (cx - int(12 * sc), cy - int(34 * sc)),
+                (cx + int(28 * sc), cy - int(18 * sc)),
+                (cx + int(8 * sc), cy + int(18 * sc)),
+                (cx - int(28 * sc), cy + int(16 * sc)),
+            ]
+        ),
         rgba(light, 80),
         3.5,
     )
-    # arms
-    img = soft_blob(img, [cx - int(118 * sc), cy - int(10 * sc), cx - int(48 * sc), cy + int(48 * sc)], rgba(dark), 1.8)
-    img = soft_blob(img, [cx + int(48 * sc), cy - int(10 * sc), cx + int(118 * sc), cy + int(48 * sc)], rgba(dark), 1.8)
-    # head
-    img = soft_blob(img, [cx - int(54 * sc), cy - int(105 * sc), cx + int(54 * sc), cy - int(18 * sc)], rgba(c), 1.8)
+    for side in (-1, 1):
+        arm = sample_bezier(
+            (cx + int(70 * sc * side), cy - int(8 * sc)),
+            (cx + int(108 * sc * side), cy + int(8 * sc)),
+            (cx + int(112 * sc * side), cy + int(38 * sc)),
+            (cx + int(78 * sc * side), cy + int(42 * sc)),
+            16,
+        )
+        img = organic_ribbon(img, arm, 20 * sc, 12 * sc, rgba(dark), seed + side * 10, 1.6)
+    head = organic_blob(
+        img,
+        [
+            (cx - int(52 * sc), cy - int(18 * sc)),
+            (cx - int(48 * sc), cy - int(72 * sc)),
+            (cx - int(12 * sc), cy - int(102 * sc)),
+            (cx + int(28 * sc), cy - int(96 * sc)),
+            (cx + int(52 * sc), cy - int(58 * sc)),
+            (cx + int(48 * sc), cy - int(20 * sc)),
+        ],
+        rgba(c),
+        seed + 2,
+        1.7,
+        1.4,
+    )
+    img = head
     radial_shade(img, cx - 6 * sc, cy - 62 * sc, 54 * sc, 44 * sc, c, strength=0.65)
     el = elements[0] if elements else "nature"
     accent = ELEMENT_ACCENT.get(el, light)
@@ -707,23 +1113,63 @@ def make_bulk(base, elements, boss=False, seed=1) -> Image.Image:
         accent=accent,
     )
     if boss:
-        img = soft_poly(
+        crown = sample_bezier(
+            (cx - int(52 * sc), cy - int(88 * sc)),
+            (cx - int(18 * sc), cy - int(148 * sc)),
+            (cx + int(18 * sc), cy - int(148 * sc)),
+            (cx + int(52 * sc), cy - int(88 * sc)),
+            18,
+        )
+        img = organic_ribbon(img, crown, 16 * sc, 6 * sc, rgba(accent, 230), seed + 30, 1.2)
+        img = organic_blob(
             img,
             [
-                (cx - int(56 * sc), cy - int(95 * sc)),
-                (cx - int(18 * sc), cy - int(150 * sc)),
-                (cx + int(18 * sc), cy - int(150 * sc)),
-                (cx + int(56 * sc), cy - int(95 * sc)),
+                (cx - int(30 * sc), cy - int(158 * sc)),
+                (cx - int(10 * sc), cy - int(172 * sc)),
+                (cx + int(10 * sc), cy - int(172 * sc)),
+                (cx + int(30 * sc), cy - int(158 * sc)),
             ],
-            rgba(accent, 230),
-            1.4,
-        )
-        img = soft_blob(
-            img,
-            [cx - int(34 * sc), cy - int(168 * sc), cx + int(34 * sc), cy - int(118 * sc)],
             rgba(shade(accent, 0.2), 220),
-            2.0,
+            seed + 31,
+            1.8,
+            1.0,
         )
+    if cid == "elder_treant":
+        for i in range(5):
+            bx = cx - int(60 * sc) + i * int(28 * sc)
+            branch = sample_bezier(
+                (bx, cy - int(40 * sc)),
+                (bx + int(18 * sc), cy - int(78 * sc)),
+                (bx - int(8 * sc), cy - int(92 * sc)),
+                (bx + int(6 * sc), cy - int(118 * sc)),
+                16,
+            )
+            img = organic_ribbon(img, branch, 10 * sc, 3 * sc, rgba(dark), seed + 40 + i, 1.0)
+    if cid == "flask_slime":
+        drip = sample_bezier(
+            (cx - int(30 * sc), cy + int(48 * sc)),
+            (cx - int(40 * sc), cy + int(72 * sc)),
+            (cx - int(18 * sc), cy + int(78 * sc)),
+            (cx - int(8 * sc), cy + int(58 * sc)),
+            12,
+        )
+        img = organic_ribbon(img, drip, 14 * sc, 6 * sc, rgba(shade(c, 0.15), 200), seed + 50, 1.4)
+    if cid == "glow_toad":
+        for side in (-1, 1):
+            spot = organic_blob(
+                img,
+                [
+                    (cx + int(24 * sc * side), cy - int(48 * sc)),
+                    (cx + int(34 * sc * side), cy - int(58 * sc)),
+                    (cx + int(40 * sc * side), cy - int(46 * sc)),
+                    (cx + int(30 * sc * side), cy - int(40 * sc)),
+                ],
+                rgba(accent, 180),
+                seed + side,
+                2.0,
+                0.8,
+            )
+            img = spot
     fur_noise(img, c, density=0.02, seed=seed)
     scale_flecks(img, accent, seed=seed + 3)
     return finish(img)
@@ -749,7 +1195,7 @@ def main():
         els = c.get("elements", [])
         boss = bool(c.get("is_boss", False))
         fn = SHAPE_FN.get(shape, make_quad)
-        img = fn(color, els, boss=boss, seed=1000 + i)
+        img = fn(color, els, boss=boss, seed=1000 + i, cid=cid)
         img.save(CREATURES / f"{cid}.png")
         if boss:
             img.save(BOSSES / f"{cid}.png")
