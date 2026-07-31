@@ -3,6 +3,8 @@ extends Control
 
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
+const BattleArt = preload("res://scripts/util/BattleArt.gd")
+const BATTLE_GFX_SCALE := 1.55
 
 @onready var log_box: RichTextLabel = $Safe/VBox/LogPanel/LogMargin/Log
 @onready var player_hp: ProgressBar = $Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol/PHP
@@ -16,6 +18,7 @@ const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 @onready var enemy_view: Control = $Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol/EView
 @onready var action_row: HBoxContainer = $Safe/VBox/Actions
 @onready var ability_list: VBoxContainer = $Safe/VBox/AbilityList
+@onready var bg: ColorRect = $BG
 @onready var bg_accent: ColorRect = $BGAccent
 @onready var enemy_panel: PanelContainer = $Safe/VBox/EnemyPanel
 @onready var player_panel: PanelContainer = $Safe/VBox/PlayerPanel
@@ -55,10 +58,12 @@ func _ready() -> void:
 		return
 	AppTheme.apply_to(self)
 	BossSprites.ensure_loaded()
+	BattleArt.ensure_loaded()
 	player = GameState.get_companion().duplicate(true)
 	enemy = pending.get("enemy", {}).duplicate(true)
 	can_flee = bool(pending.get("can_flee", true))
 	is_boss = bool(pending.get("is_boss", false))
+	_apply_arena_backdrop()
 	_style_panels()
 	player_view.draw.connect(_draw_player_battle)
 	enemy_view.draw.connect(_draw_enemy_battle)
@@ -72,8 +77,36 @@ func _ready() -> void:
 	if is_boss:
 		intro = "[b]BOSS[/b] — %s blocks the path!" % enemy.get("name", "Enemy")
 	elif enemy.get("is_obelisk_guardian", false):
-		intro = "[b]OBELISK[/b] — %s answers the call!" % enemy.get("name", "Guardian")
+		var stage := clampi(int(enemy.get("obelisk_stage", 1)), 1, 3)
+		var hue := str(enemy.get("obelisk_hue", "cyan")).capitalize()
+		intro = "[b]OBELISK %d/3 · %s[/b] — %s answers the call!" % [
+			stage, hue, enemy.get("name", "Guardian")
+		]
 	_append(intro)
+
+func _apply_arena_backdrop() -> void:
+	var region := GameState.current_region()
+	var rid := str(region.get("id", "forest"))
+	var tex := BattleArt.arena_for_region(rid)
+	if tex == null:
+		return
+	var arena := TextureRect.new()
+	arena.name = "ArenaBG"
+	arena.set_anchors_preset(Control.PRESET_FULL_RECT)
+	arena.offset_left = 0
+	arena.offset_top = 0
+	arena.offset_right = 0
+	arena.offset_bottom = 0
+	arena.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	arena.stretch_mode = TextureRect.STRETCH_SCALE
+	arena.texture = tex
+	arena.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(arena)
+	move_child(arena, 0)
+	if bg:
+		bg.color = Color(0.02, 0.03, 0.05, 0.35)
+	if bg_accent:
+		bg_accent.color = Color(0.05, 0.05, 0.08, 0.25)
 
 func _use_bond_shard() -> void:
 	if busy:
@@ -185,7 +218,7 @@ func _creature_offset(is_player_side: bool) -> Vector2:
 
 func _draw_player_battle() -> void:
 	var mid := player_view.size * 0.5 + _creature_offset(true)
-	var radius := minf(player_view.size.x, player_view.size.y) * 0.42
+	var radius := minf(player_view.size.x, player_view.size.y) * 0.42 * BATTLE_GFX_SCALE
 	player_view.draw_circle(player_view.size * 0.5 + Vector2(0, player_view.size.y * 0.28), radius * 0.85, Color(0, 0, 0, 0.25))
 	if _player_hit > 0.0:
 		player_view.modulate = Color(1.0, 1.0 - _player_hit * 0.35, 1.0 - _player_hit * 0.35, 1)
@@ -195,7 +228,7 @@ func _draw_player_battle() -> void:
 
 func _draw_enemy_battle() -> void:
 	var mid := enemy_view.size * 0.5 + _creature_offset(false)
-	var radius := minf(enemy_view.size.x, enemy_view.size.y) * (0.46 if is_boss else 0.40)
+	var radius := minf(enemy_view.size.x, enemy_view.size.y) * (0.46 if is_boss else 0.40) * BATTLE_GFX_SCALE
 	enemy_view.draw_circle(enemy_view.size * 0.5 + Vector2(0, radius * 0.75), radius * 0.85, Color(0, 0, 0, 0.28))
 	if _enemy_hit > 0.0:
 		enemy_view.modulate = Color(1, 1.0 - _enemy_hit * 0.35, 1.0 - _enemy_hit * 0.35, 1)
@@ -216,10 +249,13 @@ func _draw_fx() -> void:
 
 	var p: float = clampf(_fx_t / maxf(_fx_duration, 0.001), 0.0, 1.0)
 	var col: Color = _fx_color
+	var bolt_tex: Texture2D = BattleArt.fx("bolt")
+	var slash_tex: Texture2D = BattleArt.fx("slash")
+	var impact_tex: Texture2D = BattleArt.fx("impact")
+	var miss_tex: Texture2D = BattleArt.fx("miss")
 
 	if _fx_active:
 		if _fx_kind == "special":
-			# Arc projectile + trail
 			var ease_p: float = p * p * (3.0 - 2.0 * p)
 			var pos: Vector2 = from_pt.lerp(to_pt, ease_p)
 			var arc: float = sin(ease_p * PI) * 48.0
@@ -231,34 +267,45 @@ func _draw_fx() -> void:
 				tpos += Vector2(tarc * (1.0 if _fx_from_player else -1.0), -tarc * 0.6)
 				var trail_a: float = 0.55 - float(i) * 0.12
 				fx_layer.draw_circle(tpos, 14.0 - float(i) * 2.0, Color(col.r, col.g, col.b, trail_a))
-			fx_layer.draw_circle(pos, 20.0 if not _fx_critical else 26.0, col)
-			fx_layer.draw_circle(pos, 8.0, Color(1, 1, 1, 0.95))
+			if bolt_tex != null:
+				var bsz := 56.0 if _fx_critical else 44.0
+				fx_layer.draw_texture_rect(bolt_tex, Rect2(pos - Vector2(bsz, bsz) * 0.5, Vector2(bsz, bsz)), false, col)
+			else:
+				fx_layer.draw_circle(pos, 20.0 if not _fx_critical else 26.0, col)
+				fx_layer.draw_circle(pos, 8.0, Color(1, 1, 1, 0.95))
 		elif _fx_kind == "physical":
-			# Slash streaks near impact window
 			if p > 0.25 and p < 0.9:
 				var slash_p: float = (p - 0.25) / 0.65
 				var mid: Vector2 = from_pt.lerp(to_pt, 0.68)
-				var ang: float = (-0.7 if _fx_from_player else 0.7) + slash_p * 0.5
-				var slash_len: float = 72.0 + (18.0 if _fx_critical else 0.0)
-				var axis: Vector2 = Vector2(cos(ang), sin(ang)) * slash_len
-				var width_col := Color(col.r, col.g, col.b, 0.95 - slash_p * 0.4)
-				fx_layer.draw_line(mid - axis, mid + axis, width_col, 10.0 if _fx_critical else 7.0)
-				fx_layer.draw_line(mid - axis * 0.7 + Vector2(0, 10), mid + axis * 0.7 + Vector2(0, 10), Color(1, 1, 1, 0.55), 3.0)
-				# Extra claw marks
-				fx_layer.draw_line(mid - axis * 0.55 + Vector2(0, -10), mid + axis * 0.55 + Vector2(0, -10), Color(col.r, col.g, col.b, 0.7), 4.0)
+				if slash_tex != null:
+					var ssz := Vector2(110.0 if _fx_critical else 90.0, 70.0)
+					var tint := Color(col.r, col.g, col.b, 0.95 - slash_p * 0.35)
+					fx_layer.draw_texture_rect(slash_tex, Rect2(mid - ssz * 0.5, ssz), false, tint)
+				else:
+					var ang: float = (-0.7 if _fx_from_player else 0.7) + slash_p * 0.5
+					var slash_len: float = 72.0 + (18.0 if _fx_critical else 0.0)
+					var axis: Vector2 = Vector2(cos(ang), sin(ang)) * slash_len
+					var width_col := Color(col.r, col.g, col.b, 0.95 - slash_p * 0.4)
+					fx_layer.draw_line(mid - axis, mid + axis, width_col, 10.0 if _fx_critical else 7.0)
 		elif _fx_kind == "miss":
-			# Soft puff that fades near the target
 			var miss_pos: Vector2 = from_pt.lerp(to_pt, minf(p * 1.2, 0.85))
 			var miss_a: float = 0.55 * (1.0 - p)
-			fx_layer.draw_circle(miss_pos, 16.0 + p * 10.0, Color(0.85, 0.85, 0.9, miss_a))
+			if miss_tex != null:
+				var msz := 48.0 + p * 20.0
+				fx_layer.draw_texture_rect(miss_tex, Rect2(miss_pos - Vector2(msz, msz) * 0.5, Vector2(msz, msz)), false, Color(1, 1, 1, miss_a))
+			else:
+				fx_layer.draw_circle(miss_pos, 16.0 + p * 10.0, Color(0.85, 0.85, 0.9, miss_a))
 
 	if _fx_impact > 0.0:
 		var burst: Vector2 = to_pt
 		var impact_a: float = _fx_impact
 		var r: float = 28.0 + (1.0 - impact_a) * 52.0
-		fx_layer.draw_circle(burst, r, Color(col.r, col.g, col.b, 0.45 * impact_a))
-		fx_layer.draw_circle(burst, r * 0.45, Color(1, 1, 1, 0.7 * impact_a))
-		# Short radial ticks
+		if impact_tex != null:
+			var isz := r * 2.2
+			fx_layer.draw_texture_rect(impact_tex, Rect2(burst - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, Color(col.r, col.g, col.b, 0.85 * impact_a))
+		else:
+			fx_layer.draw_circle(burst, r, Color(col.r, col.g, col.b, 0.45 * impact_a))
+			fx_layer.draw_circle(burst, r * 0.45, Color(1, 1, 1, 0.7 * impact_a))
 		for i in range(6):
 			var bang: float = float(i) * TAU / 6.0 + _anim_t * 2.0
 			var outer: Vector2 = Vector2(cos(bang), sin(bang)) * (r * 1.15)
@@ -321,7 +368,7 @@ func _play_attack_fx(from_player: bool, ability_id: String, hit: bool, critical:
 func _refresh() -> void:
 	LevelSystem.ensure_fields(player)
 	player_name.text = "%s  ·  Lv %d" % [str(player.get("name", "You")), int(player.get("level", 1))]
-	enemy_name.text = str(enemy.get("name", "Enemy"))
+	enemy_name.text = "%s  ·  Lv %d" % [str(enemy.get("name", "Enemy")), int(enemy.get("level", 1))]
 	var tags: Array = []
 	if is_boss:
 		tags.append("BOSS")
@@ -499,7 +546,10 @@ func _do_enemy_action() -> void:
 
 func _victory() -> void:
 	_append("%s was defeated!" % enemy.get("name"))
-	var xp_result: Dictionary = LevelSystem.grant_battle_xp(player, enemy, is_boss)
+	# Bonus uses bosses already cleared — current boss is marked after XP grant.
+	var xp_result: Dictionary = LevelSystem.grant_battle_xp(
+		player, enemy, is_boss, GameState.bosses_defeated_count()
+	)
 	var xp_gained := int(xp_result.get("xp_gained", 0))
 	if xp_gained > 0:
 		_append("%s gained %d XP." % [player.get("name"), xp_gained])
@@ -511,6 +561,11 @@ func _victory() -> void:
 	if is_boss:
 		GameState.mark_boss_defeated(str(enemy.get("template_id", enemy.get("id"))))
 	GameState.end_battle_victory(enemy)
+	var bonus_log := str(GameState.run.get("pending_obelisk_bonus_log", ""))
+	if bonus_log != "":
+		GameState.run["pending_obelisk_bonus_log"] = ""
+		_append(bonus_log)
+		await get_tree().create_timer(0.45).timeout
 	var drop: Dictionary = GameState.try_grant_bond_shard_drop(enemy, is_boss)
 	if bool(drop.get("granted", false)):
 		_append(str(drop.get("log", "Found a Bond Shard!")))

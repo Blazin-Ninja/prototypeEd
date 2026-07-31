@@ -5,13 +5,14 @@ You bond with **one** companion for the entire run. Defeat enemies and choose to
 
 ## MVP Features
 
-- 5 starters (2 unlocked by default; more via Evolution Tokens)
-- Pokémon-style grid overworld (Mutant Forest playable)
+- 5 starters (2 unlocked by default; more via Evolution Tokens) + Basilisk (evolves at Lv 8)
+- Pokémon-style grid overworld with **5 dungeon floors per region**
 - Random grass encounters, Alpha variants, turn-based combat
 - Absorb / Leave with independent rolls (stats, abilities, elements, mutations)
 - Ability evolution chains, max 6 abilities / 3 elements
 - Forest boss (Elder Treant) + Hive finale boss (Hive Heart)
-- Region stubs: Desert, Frozen Mountains, Alien Lab
+- Regions: Forest, Desert, Frozen Mountains, Alien Lab, Meteor Hive
+- Companion XP levels + encounter levels that progress by floor
 - Permadeath runs + account Evolution Token shop
 - Portrait mobile UI with virtual joystick
 
@@ -69,6 +70,7 @@ Adding a creature: append an entry in `data/creatures.json` with stats, families
 
 ## Design notes
 
-- Mid-regions are content stubs; clearing Forest unlocks Desert (stub) and **Meteor Hive** (MVP finale shortcut).
-- Placeholder shapes only — no polished art yet.
+- Each region has **5 dungeon floors**. Floors 1–4 use stairs to descend; Floor 5 holds the region boss.
+- Encounter levels and wild pressure rise with region index, floor depth, and bosses defeated.
+- Basilisk evolves into Dread Basilisk at companion level 8.
 - Offline single-player; save seams kept simple for future multiplayer.
