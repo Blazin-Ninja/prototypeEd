@@ -27,8 +27,17 @@ func save_run(data: Dictionary) -> void:
 	_write(RUN_PATH, data)
 
 func clear_run() -> void:
+	## Delete run save reliably (user:// needs globalize_path on some devices).
 	if FileAccess.file_exists(RUN_PATH):
-		DirAccess.remove_absolute(RUN_PATH)
+		var abs_path := ProjectSettings.globalize_path(RUN_PATH)
+		DirAccess.remove_absolute(abs_path)
+	if FileAccess.file_exists(RUN_PATH):
+		# Last resort: overwrite with empty marker then remove again.
+		var f := FileAccess.open(RUN_PATH, FileAccess.WRITE)
+		if f != null:
+			f.store_string("{}")
+			f = null
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(RUN_PATH))
 
 func _default_account() -> Dictionary:
 	var owned: Array = []

@@ -68,7 +68,7 @@ static func snapshot(creature: Dictionary) -> Dictionary:
 	return creature.duplicate(true)
 
 static func snapshot_for_retry(creature: Dictionary) -> Dictionary:
-	## Compact bond identity for a death retry (species DNA, not run power).
+	## Compact bond identity for a death retry (species DNA only — never level/stats).
 	if creature.is_empty():
 		return {}
 	return {
@@ -82,15 +82,17 @@ static func snapshot_for_retry(creature: Dictionary) -> Dictionary:
 	}
 
 static func create_retry_companion(snapshot: Dictionary) -> Dictionary:
-	## Fresh Lv 1 companion from a defeated bond: keep DNA, reset power.
+	## Fresh Lv 1 companion from a defeated bond: keep DNA, discard run power.
 	if snapshot.is_empty():
 		return {}
-	var tid := str(snapshot.get("template_id", ""))
+	# Tolerate a full creature dict being passed by mistake — only read DNA fields.
+	var tid := str(snapshot.get("template_id", snapshot.get("id", "")))
 	if tid == "" or DataRegistry.get_creature(tid).is_empty():
 		return {}
 	var fresh := create_from_template(tid, {"is_player": true})
 	if fresh.is_empty():
 		return {}
+	# Always start from the template's printed name / base power.
 	var template_name := str(DataRegistry.get_creature(tid).get("name", tid))
 	fresh["name"] = template_name
 	# Bonded kit — clamp to game limits.
@@ -121,12 +123,13 @@ static func create_retry_companion(snapshot: Dictionary) -> Dictionary:
 			families.append(fid)
 	if not families.is_empty():
 		fresh["families"] = families
-	# Re-apply mutations so passive stat bonuses match the DNA history.
+	# Re-apply mutations on the Lv1 base (visuals + passive DNA bonuses only).
 	fresh["mutations"] = []
 	fresh["visual_loadout"] = {}
 	fresh["passives"] = []
 	for mid in snapshot.get("mutations", []):
 		MutationSystem.apply_mutation(fresh, str(mid))
+	# Hard power reset — never inherit leveled stats/xp from the lost run.
 	fresh["level"] = 1
 	fresh["xp"] = 0
 	fresh["statuses"] = []
@@ -134,8 +137,16 @@ static func create_retry_companion(snapshot: Dictionary) -> Dictionary:
 	fresh["is_legendary"] = false
 	fresh["is_boss"] = false
 	fresh["is_player"] = true
+	fresh.erase("unscaled_stats")
+	# Rebuild HP from current (base + mutation) hp stat.
+	var stats: Dictionary = fresh.get("stats", {})
+	var max_hp := int(stats.get("hp", fresh.get("max_hp", 1)))
+	fresh["max_hp"] = max_hp
+	fresh["hp"] = max_hp
 	apply_stat_cap(fresh)
 	fresh["hp"] = int(fresh.get("max_hp", 1))
+	fresh["level"] = 1
+	fresh["xp"] = 0
 	return fresh
 
 static func apply_stat_cap(creature: Dictionary) -> void:

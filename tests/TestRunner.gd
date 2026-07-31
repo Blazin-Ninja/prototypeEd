@@ -315,23 +315,50 @@ func _test_bond_retry() -> int:
 	var f := 0
 	GameState.start_new_run("basilisk")
 	var companion: Dictionary = GameState.get_companion()
+	var base_atk := int(companion.get("stats", {}).get("attack", 0))
+	var base_hp := int(companion.get("max_hp", 0))
 	MutationSystem.apply_mutation(companion, "scales_green")
 	companion["abilities"] = ["vine_lash", "sting", "toxin_spray"]
 	companion["elements"] = ["poison", "nature"]
-	companion["level"] = 8
+	# Simulate leveling so stats diverge hard from base.
+	for _i in range(9):
+		LevelSystem._apply_level_bonus(companion)
+		companion["level"] = int(companion.get("level", 1)) + 1
+	companion["xp"] = 12
 	GameState.set_companion(companion)
+	f += _ok("pre-death level high", int(companion.get("level", 1)) >= 10)
+	f += _ok("pre-death stats raised", int(companion.get("stats", {}).get("attack", 0)) > base_atk)
 	# Force evolve mid-run then die.
 	var evo := EvolutionSystem.try_evolve(companion)
 	f += _ok("retry setup evolved", bool(evo.get("evolved", false)))
 	GameState.set_companion(companion)
+	var leveled_atk := int(companion.get("stats", {}).get("attack", 0))
 	var report := GameState.end_run(false)
 	f += _ok("loss report allows retry", bool(report.get("can_retry", false)))
 	f += _ok("pending retry snapshot kept", GameState.has_pending_retry_companion())
 	f += _ok("run cleared after death", GameState.run.is_empty())
+	f += _ok("dead run not continuable", not GameState.has_continue())
+	# DNA snapshot must not carry level/power fields.
+	var snap: Dictionary = GameState.pending_retry_companion
+	f += _ok("snap has no level", not snap.has("level"))
+	f += _ok("snap has no stats", not snap.has("stats"))
+	f += _ok("snap has no xp", not snap.has("xp"))
+	# Persist across account reload (simulates app restart on Bond Lost).
+	GameState.pending_retry_companion = {}
+	GameState.refresh_account()
+	f += _ok("retry survives account reload", GameState.has_pending_retry_companion())
 	f += _ok("retry start ok", GameState.start_new_run_from_pending_companion())
 	var again: Dictionary = GameState.get_companion()
 	f += _ok("retry keeps evolved form", str(again.get("template_id", "")) == "dread_basilisk")
 	f += _ok("retry resets to level 1", int(again.get("level", 0)) == 1)
+	f += _ok("retry xp cleared", int(again.get("xp", -1)) == 0)
+	# Stats must match a fresh template of the retry species + DNA mutations — not leveled power.
+	var expected := CreatureFactory.create_from_template("dread_basilisk", {"is_player": true})
+	MutationSystem.apply_mutation(expected, "scales_green")
+	ProgressionSystem.apply_starting_passives(expected, GameState.account)
+	f += _ok("retry attack reset", int(again.get("stats", {}).get("attack", 0)) == int(expected.get("stats", {}).get("attack", -1)))
+	f += _ok("retry hp reset", int(again.get("max_hp", 0)) == int(expected.get("max_hp", -1)))
+	f += _ok("retry weaker than leveled", int(again.get("stats", {}).get("attack", 0)) < leveled_atk)
 	f += _ok("retry keeps mutations", (again.get("mutations", []) as Array).has("scales_green"))
 	f += _ok("retry keeps abilities", (again.get("abilities", []) as Array).has("toxin_spray"))
 	f += _ok("retry starts in forest", str(GameState.run.get("region_id", "")) == "forest")

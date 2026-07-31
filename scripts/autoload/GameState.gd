@@ -19,21 +19,34 @@ var pending_retry_difficulty: String = "normal"
 
 func _ready() -> void:
 	account = SaveService.load_account()
+	_restore_pending_retry_from_account()
 
 func refresh_account() -> void:
 	account = SaveService.load_account()
+	_restore_pending_retry_from_account()
 
 func available_starters() -> Array:
 	return ProgressionSystem.available_starters(account)
 
 func has_continue() -> bool:
-	return SaveService.has_run()
+	if not SaveService.has_run():
+		return false
+	var data := SaveService.load_run()
+	if data.is_empty():
+		return false
+	# Dead / cleared runs must never Continuable with old leveled companions.
+	if not bool(data.get("alive", false)):
+		SaveService.clear_run()
+		return false
+	return true
 
 func continue_run() -> bool:
 	if not SaveService.has_run():
 		return false
 	run = SaveService.load_run()
-	if run.is_empty():
+	if run.is_empty() or not bool(run.get("alive", false)):
+		SaveService.clear_run()
+		run = {}
 		return false
 	# Migrate pre–Bond Shard saves.
 	if not run.has("bond_shards"):
@@ -52,18 +65,22 @@ func continue_run() -> bool:
 		run["difficulty"] = DifficultySystem.ID_NORMAL
 		autosave()
 	else:
-		run["difficulty"] = DifficultySystem.normalize(str(run.get("difficulty", "normal")))
+		run["difficulty"] = DifficultySystem.normalize(str(run.get("difficulty", DifficultySystem.ID_NORMAL)))
 	if not run.has("explored_maps"):
 		run["explored_maps"] = {}
 		autosave()
+	# Ensure companion power fields are sane if an old save somehow carried junk.
+	var companion: Dictionary = run.get("companion", {})
+	if not companion.is_empty():
+		LevelSystem.ensure_fields(companion)
+		run["companion"] = companion
 	if not account.has("preferred_difficulty"):
 		account["preferred_difficulty"] = DifficultySystem.ID_NORMAL
 		SaveService.save_account(account)
 	return true
 
 func start_new_run(starter_id: String, difficulty: String = "normal") -> void:
-	pending_retry_companion = {}
-	pending_retry_difficulty = DifficultySystem.ID_NORMAL
+	clear_pending_retry_companion()
 	var diff := DifficultySystem.normalize(difficulty)
 	set_preferred_difficulty(diff)
 	var companion := CreatureFactory.create_from_template(starter_id, {"is_player": true})
@@ -71,17 +88,25 @@ func start_new_run(starter_id: String, difficulty: String = "normal") -> void:
 	_begin_run_with_companion(starter_id, companion, diff)
 
 func start_new_run_from_pending_companion() -> bool:
-	## Death retry: same companion DNA, fresh run at Lv 1.
+	## Death retry: same companion DNA, fresh run at Lv 1 with base (non-leveled) stats.
+	_restore_pending_retry_from_account()
 	if pending_retry_companion.is_empty():
 		return false
 	var snap: Dictionary = pending_retry_companion.duplicate(true)
 	var diff := DifficultySystem.normalize(pending_retry_difficulty)
-	pending_retry_companion = {}
-	pending_retry_difficulty = DifficultySystem.ID_NORMAL
+	clear_pending_retry_companion()
+	# Never resume a dead leveled run.
+	SaveService.clear_run()
+	run = {}
 	var companion := CreatureFactory.create_retry_companion(snap)
 	if companion.is_empty():
 		return false
 	ProgressionSystem.apply_starting_passives(companion, account)
+	# Passives must not reintroduce level/xp from a bad snapshot.
+	companion["level"] = 1
+	companion["xp"] = 0
+	companion.erase("unscaled_stats")
+	companion["hp"] = int(companion.get("max_hp", companion.get("stats", {}).get("hp", 1)))
 	var starter_id := str(companion.get("template_id", snap.get("template_id", "ember_pup")))
 	_begin_run_with_companion(starter_id, companion, diff)
 	return true
@@ -89,9 +114,35 @@ func start_new_run_from_pending_companion() -> bool:
 func clear_pending_retry_companion() -> void:
 	pending_retry_companion = {}
 	pending_retry_difficulty = DifficultySystem.ID_NORMAL
+	if account.has("pending_retry_companion"):
+		account.erase("pending_retry_companion")
+	if account.has("pending_retry_difficulty"):
+		account.erase("pending_retry_difficulty")
+	SaveService.save_account(account)
 
 func has_pending_retry_companion() -> bool:
+	if pending_retry_companion.is_empty():
+		_restore_pending_retry_from_account()
 	return not pending_retry_companion.is_empty()
+
+func _restore_pending_retry_from_account() -> void:
+	if not pending_retry_companion.is_empty():
+		return
+	var snap = account.get("pending_retry_companion", {})
+	if typeof(snap) == TYPE_DICTIONARY and not snap.is_empty():
+		pending_retry_companion = (snap as Dictionary).duplicate(true)
+		pending_retry_difficulty = DifficultySystem.normalize(
+			str(account.get("pending_retry_difficulty", DifficultySystem.ID_NORMAL))
+		)
+
+func _persist_pending_retry_to_account() -> void:
+	if pending_retry_companion.is_empty():
+		account.erase("pending_retry_companion")
+		account.erase("pending_retry_difficulty")
+	else:
+		account["pending_retry_companion"] = pending_retry_companion.duplicate(true)
+		account["pending_retry_difficulty"] = DifficultySystem.normalize(pending_retry_difficulty)
+	SaveService.save_account(account)
 
 func get_difficulty() -> String:
 	if run.is_empty():
@@ -333,14 +384,17 @@ func mark_boss_defeated(boss_id: String) -> void:
 func end_run(won: bool) -> Dictionary:
 	var companion: Dictionary = get_companion()
 	var tokens := ProgressionSystem.grant_tokens(account, run, won)
-	SaveService.save_account(account)
-	# On loss, keep bond DNA so the player can retry with the same companion.
+	# Mark dead before wipe so a failed clear_run cannot Continue a leveled corpse.
+	if not run.is_empty():
+		run["alive"] = false
+		SaveService.save_run(run)
+	# On loss, keep bond DNA so the player can retry with the same companion at Lv 1.
 	if won:
-		pending_retry_companion = {}
-		pending_retry_difficulty = DifficultySystem.ID_NORMAL
+		clear_pending_retry_companion()
 	else:
 		pending_retry_companion = CreatureFactory.snapshot_for_retry(companion)
 		pending_retry_difficulty = get_difficulty()
+		_persist_pending_retry_to_account()
 	last_run_report = {
 		"won": won,
 		"tokens": tokens,
@@ -350,7 +404,7 @@ func end_run(won: bool) -> Dictionary:
 		"companion_name": companion.get("name", "?"),
 		"companion_template_id": str(companion.get("template_id", "")),
 		"can_retry": not won and not pending_retry_companion.is_empty(),
-		"difficulty": get_difficulty()
+		"difficulty": get_difficulty() if not run.is_empty() else pending_retry_difficulty
 	}
 	account["last_run_summary"] = {
 		"won": won,
@@ -358,7 +412,9 @@ func end_run(won: bool) -> Dictionary:
 		"battles_won": last_run_report.get("battles_won", 0),
 		"absorptions": last_run_report.get("absorptions", 0),
 		"regions_cleared": last_run_report.get("regions_cleared", []),
-		"companion_name": last_run_report.get("companion_name", "?")
+		"companion_name": last_run_report.get("companion_name", "?"),
+		"can_retry": bool(last_run_report.get("can_retry", false)),
+		"difficulty": last_run_report.get("difficulty", DifficultySystem.ID_NORMAL)
 	}
 	if won:
 		account["runs_won"] = int(account.get("runs_won", 0)) + 1
