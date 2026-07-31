@@ -1,15 +1,22 @@
 extends Control
 
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
+const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 
 @onready var list: VBoxContainer = $Safe/VBox/Scroll/List
 @onready var detail: Label = $Safe/VBox/Detail
 @onready var preview: Control = $Safe/VBox/Preview
 @onready var confirm_btn: Button = $Safe/VBox/ConfirmBtn
+@onready var diff_hint: Label = $Safe/VBox/DiffHint
+@onready var easy_btn: Button = $Safe/VBox/DiffRow/EasyBtn
+@onready var normal_btn: Button = $Safe/VBox/DiffRow/NormalBtn
+@onready var hard_btn: Button = $Safe/VBox/DiffRow/HardBtn
 
 var _selected: String = ""
+var _difficulty: String = DifficultySystem.ID_NORMAL
 var _preview_creature: Dictionary = {}
 var _preview_t := 0.0
+var _diff_buttons: Dictionary = {}
 
 func _ready() -> void:
 	AppTheme.apply_to(self)
@@ -17,6 +24,15 @@ func _ready() -> void:
 	confirm_btn.disabled = true
 	confirm_btn.pressed.connect(_confirm)
 	$Safe/VBox/BackBtn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/menu/MainMenu.tscn"))
+	_diff_buttons = {
+		DifficultySystem.ID_EASY: easy_btn,
+		DifficultySystem.ID_NORMAL: normal_btn,
+		DifficultySystem.ID_HARD: hard_btn
+	}
+	easy_btn.pressed.connect(_set_difficulty.bind(DifficultySystem.ID_EASY))
+	normal_btn.pressed.connect(_set_difficulty.bind(DifficultySystem.ID_NORMAL))
+	hard_btn.pressed.connect(_set_difficulty.bind(DifficultySystem.ID_HARD))
+	_set_difficulty(GameState.get_preferred_difficulty())
 	_build_list()
 	preview.draw.connect(_on_preview_draw)
 
@@ -25,11 +41,22 @@ func _process(delta: float) -> void:
 	if not _preview_creature.is_empty():
 		preview.queue_redraw()
 
+func _set_difficulty(diff_id: String) -> void:
+	_difficulty = DifficultySystem.normalize(diff_id)
+	for id in _diff_buttons.keys():
+		var btn: Button = _diff_buttons[id]
+		btn.set_pressed_no_signal(id == _difficulty)
+	diff_hint.text = "%s — %s" % [
+		DifficultySystem.label(_difficulty),
+		DifficultySystem.description(_difficulty)
+	]
+	GameState.set_preferred_difficulty(_difficulty)
+
 func _build_list() -> void:
 	for c in list.get_children():
 		c.queue_free()
 	var available := GameState.available_starters()
-	# Show all 5 starters; locked ones disabled with unlock hint.
+	# Show all starters; locked ones disabled with unlock hint.
 	for sid in DataRegistry.get_starters():
 		var template: Dictionary = DataRegistry.get_creature(str(sid))
 		var unlocked := available.has(sid)
@@ -82,5 +109,5 @@ func _on_preview_draw() -> void:
 func _confirm() -> void:
 	if _selected == "":
 		return
-	GameState.start_new_run(_selected)
+	GameState.start_new_run(_selected, _difficulty)
 	get_tree().change_scene_to_file("res://scenes/overworld/Overworld.tscn")
