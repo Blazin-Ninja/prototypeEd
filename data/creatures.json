@@ -2,8 +2,8 @@
   "creatures": [
     {
       "id": "ember_pup",
-      "name": "Ember Pup",
-      "description": "A fox-like spark born near the meteor scars.",
+      "name": "Blazen Mouse",
+      "description": "A blazing mouse-spark born near the meteor scars.",
       "is_starter": true,
       "base_stats": {
         "hp": 84,
@@ -72,8 +72,8 @@
     },
     {
       "id": "tide_fin",
-      "name": "Tide Fin",
-      "description": "A sleek aquatic scout with shimmering fins.",
+      "name": "Beaver Weaver",
+      "description": "A sleek aquatic weaver with shimmering fins.",
       "is_starter": true,
       "base_stats": {
         "hp": 88,
@@ -139,8 +139,8 @@
     },
     {
       "id": "sproutling",
-      "name": "Sproutling",
-      "description": "A seed-beast awakened by alien pollen.",
+      "name": "Willow Tree",
+      "description": "A rooted willow-beast awakened by alien pollen.",
       "is_starter": true,
       "base_stats": {
         "hp": 92,
@@ -207,7 +207,7 @@
     },
     {
       "id": "gale_hatch",
-      "name": "Gale Hatch",
+      "name": "SophaPeya",
       "description": "A fledgling that rides storm drafts.",
       "is_starter": true,
       "base_stats": {
@@ -274,8 +274,8 @@
     },
     {
       "id": "volt_cub",
-      "name": "Volt Cub",
-      "description": "A charged predator pup with crackling fur.",
+      "name": "Thunder Up",
+      "description": "A charged predator with crackling fur.",
       "is_starter": true,
       "base_stats": {
         "hp": 80,
@@ -945,7 +945,7 @@
     },
     {
       "id": "basilisk",
-      "name": "Basilisk",
+      "name": "Toxie Bane",
       "description": "Venom-eyed serpent of the forest floor. Levels into something far worse.",
       "region": "forest",
       "evolves_to": "dread_basilisk",
