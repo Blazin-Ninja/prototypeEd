@@ -25,6 +25,9 @@ const BATTLE_GFX_SCALE := 1.55
 @onready var log_panel: PanelContainer = $Safe/VBox/LogPanel
 @onready var fx_layer: Control = $FXLayer
 @onready var heal_btn: Button = $Safe/VBox/Actions/HealBtn
+@onready var revive_row: HBoxContainer = $Safe/VBox/ReviveRow
+@onready var revive_btn: Button = $Safe/VBox/ReviveRow/ReviveBtn
+@onready var give_up_btn: Button = $Safe/VBox/ReviveRow/GiveUpBtn
 
 var player: Dictionary = {}
 var enemy: Dictionary = {}
@@ -33,6 +36,7 @@ var busy := false
 var is_boss := false
 var _anim_t := 0.0
 var _pending_shard_drop_log := ""
+var _awaiting_revive_choice := false
 
 # Motion / hit feedback
 var _player_lunge := 0.0
@@ -73,6 +77,9 @@ func _ready() -> void:
 	$Safe/VBox/Actions/FleeBtn.pressed.connect(_flee)
 	$Safe/VBox/Actions/FleeBtn.disabled = not can_flee
 	heal_btn.pressed.connect(_use_bond_shard)
+	revive_btn.pressed.connect(_confirm_shard_revive)
+	give_up_btn.pressed.connect(_confirm_give_up)
+	revive_row.visible = false
 	_refresh()
 	var intro := "%s wants to battle!" % enemy.get("name", "Enemy")
 	if is_boss:
@@ -168,7 +175,7 @@ func _finish_player_action_turn() -> void:
 		await _victory()
 		return
 	if int(player.get("hp", 0)) <= 0:
-		await _defeat()
+		await _on_player_fallen()
 		return
 	busy = false
 	_set_actions_enabled(true)
@@ -524,7 +531,7 @@ func _resolve_turn(player_ability: String) -> void:
 		await _victory()
 		return
 	if int(player.get("hp", 0)) <= 0:
-		await _defeat()
+		await _on_player_fallen()
 		return
 	_set_actions_enabled(true)
 
@@ -536,7 +543,7 @@ func _enemy_turn_only() -> void:
 		_append(str(log))
 	_refresh()
 	if int(player.get("hp", 0)) <= 0:
-		await _defeat()
+		await _on_player_fallen()
 
 func _do_enemy_action() -> void:
 	if not CombatSystem.can_act(enemy):
@@ -592,7 +599,55 @@ func _victory() -> void:
 	await get_tree().create_timer(0.7).timeout
 	get_tree().change_scene_to_file("res://scenes/absorb/AbsorbDecision.tscn")
 
+func _on_player_fallen() -> void:
+	busy = true
+	ability_list.visible = false
+	_set_actions_enabled(false)
+	GameState.set_companion(player)
+	if not GameState.can_shard_revive():
+		await _defeat()
+		return
+	_awaiting_revive_choice = true
+	_append("%s has fallen! Spend %d Bond Shards to revive, or give up." % [
+		player.get("name"),
+		GameState.BOND_SHARD_REVIVE_COST
+	])
+	revive_btn.text = "REVIVE (%d shards · %d left)" % [
+		GameState.BOND_SHARD_REVIVE_COST,
+		GameState.get_shard_revives_left()
+	]
+	action_row.visible = false
+	revive_row.visible = true
+
+func _confirm_shard_revive() -> void:
+	if not _awaiting_revive_choice:
+		return
+	_awaiting_revive_choice = false
+	revive_row.visible = false
+	action_row.visible = true
+	var res: Dictionary = GameState.try_shard_revive(player)
+	if not bool(res.get("ok", false)):
+		_append(str(res.get("log", "Revive failed.")))
+		await _defeat()
+		return
+	_append(str(res.get("log", "Revived!")))
+	GameState.set_companion(player)
+	_refresh()
+	busy = false
+	_set_actions_enabled(true)
+
+func _confirm_give_up() -> void:
+	if not _awaiting_revive_choice:
+		return
+	_awaiting_revive_choice = false
+	revive_row.visible = false
+	action_row.visible = true
+	await _defeat()
+
 func _defeat() -> void:
+	_awaiting_revive_choice = false
+	revive_row.visible = false
+	action_row.visible = true
 	_append("%s has fallen... The bond is broken." % player.get("name"))
 	GameState.set_companion(player)
 	GameState.last_run_report = GameState.end_run(false)

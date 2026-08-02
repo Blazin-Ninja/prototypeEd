@@ -7,7 +7,10 @@ const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const EncounterSystem = preload("res://scripts/domain/EncounterSystem.gd")
 const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 const RunTimer = preload("res://scripts/util/RunTimer.gd")
+const CombatSystem = preload("res://scripts/domain/CombatSystem.gd")
 const BOND_SHARD_CAP := 5
+const BOND_SHARD_REVIVE_COST := 3
+const BOND_SHARD_REVIVE_MAX := 3
 
 var account: Dictionary = {}
 var run: Dictionary = {}
@@ -73,6 +76,11 @@ func continue_run() -> bool:
 	if not run.has("started_at_ms") or int(run.get("started_at_ms", 0)) <= 0:
 		run["started_at_ms"] = RunTimer.now_ms()
 		autosave()
+	if not run.has("shard_revives_used"):
+		run["shard_revives_used"] = 0
+		autosave()
+	else:
+		run["shard_revives_used"] = clampi(int(run.get("shard_revives_used", 0)), 0, BOND_SHARD_REVIVE_MAX)
 	# Ensure companion power fields are sane if an old save somehow carried junk.
 	var companion: Dictionary = run.get("companion", {})
 	if not companion.is_empty():
@@ -188,7 +196,8 @@ func _begin_run_with_companion(starter_id: String, companion: Dictionary, diffic
 		"region_floor": 1,
 		"difficulty": diff,
 		"explored_maps": {},
-		"started_at_ms": RunTimer.now_ms()
+		"started_at_ms": RunTimer.now_ms(),
+		"shard_revives_used": 0
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
 	RunTimer.ensure_board(account)
@@ -655,6 +664,44 @@ func consume_bond_shard() -> bool:
 		return false
 	set_bond_shards(get_bond_shards() - 1)
 	return true
+
+func get_shard_revives_used() -> int:
+	if run.is_empty():
+		return 0
+	return clampi(int(run.get("shard_revives_used", 0)), 0, BOND_SHARD_REVIVE_MAX)
+
+func get_shard_revives_left() -> int:
+	return maxi(0, BOND_SHARD_REVIVE_MAX - get_shard_revives_used())
+
+func can_shard_revive() -> bool:
+	if run.is_empty() or not bool(run.get("alive", false)):
+		return false
+	return get_bond_shards() >= BOND_SHARD_REVIVE_COST and get_shard_revives_left() > 0
+
+func try_shard_revive(companion: Dictionary) -> Dictionary:
+	## Spend 3 shards to fully revive. Max 3 uses per run.
+	if not can_shard_revive():
+		return {
+			"ok": false,
+			"shards": get_bond_shards(),
+			"revives_left": get_shard_revives_left(),
+			"log": "Cannot revive — need %d Bond Shards and remaining revive uses." % BOND_SHARD_REVIVE_COST
+		}
+	set_bond_shards(get_bond_shards() - BOND_SHARD_REVIVE_COST)
+	run["shard_revives_used"] = get_shard_revives_used() + 1
+	CombatSystem.apply_shard_revive(companion)
+	autosave()
+	var left := get_shard_revives_left()
+	return {
+		"ok": true,
+		"shards": get_bond_shards(),
+		"revives_left": left,
+		"log": "Spent %d Bond Shards to revive! Full HP restored. (%d revive%s left this run)" % [
+			BOND_SHARD_REVIVE_COST,
+			left,
+			"" if left == 1 else "s"
+		]
+	}
 
 func try_grant_bond_shard_drop(enemy: Dictionary, is_boss_fight: bool) -> Dictionary:
 	## Returns {granted: bool, shards: int, log: String}

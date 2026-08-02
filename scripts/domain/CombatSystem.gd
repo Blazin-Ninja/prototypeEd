@@ -180,6 +180,12 @@ static func use_bond_shard(companion: Dictionary) -> Dictionary:
 		log += " Purged %s." % cleansed
 	return {"ok": true, "healed": actual, "cleansed": cleansed, "log": log}
 
+static func apply_shard_revive(companion: Dictionary) -> void:
+	## Full HP revive used by the 3-shard death revive.
+	var max_hp := int(companion.get("max_hp", companion.get("stats", {}).get("hp", 1)))
+	companion["hp"] = maxi(1, max_hp)
+	companion["statuses"] = []
+
 static func _cleanse_priority_status(creature: Dictionary) -> Variant:
 	## Prefer stun > poison > burn > first remaining.
 	var statuses: Array = creature.get("statuses", [])

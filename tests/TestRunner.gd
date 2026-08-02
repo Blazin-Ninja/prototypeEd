@@ -28,6 +28,7 @@ func _ready() -> void:
 	failed += _test_map_walkable()
 	failed += _test_obelisks()
 	failed += _test_bond_shards()
+	failed += _test_shard_revive()
 	failed += _test_level_up()
 	failed += _test_bond_retry()
 	failed += _test_difficulty_modes()
@@ -265,6 +266,49 @@ func _test_bond_shards() -> int:
 	boosted["passives"] = ["vital_bond"]
 	var boosted_band := CombatSystem.bond_shard_heal_range(boosted)
 	f += _ok("vital_bond raises heal band", is_equal_approx(boosted_band.x, 0.50) and is_equal_approx(boosted_band.y, 0.75))
+	return f
+
+func _test_shard_revive() -> int:
+	var f := 0
+	GameState.start_new_run("ember_pup", "normal")
+	f += _ok("new run starts with 0 revives used", GameState.get_shard_revives_used() == 0)
+	f += _ok("new run has 3 revives left", GameState.get_shard_revives_left() == 3)
+	GameState.set_bond_shards(2)
+	var pup := GameState.get_companion()
+	pup["hp"] = 0
+	pup["statuses"] = [{"id": "poison", "turns": 2}, {"id": "burn", "turns": 1}]
+	GameState.set_companion(pup)
+	f += _ok("cannot revive with 2 shards", not GameState.can_shard_revive())
+	var fail := GameState.try_shard_revive(pup)
+	f += _ok("try revive fails under cost", not bool(fail.get("ok", true)))
+	f += _ok("shards unchanged on fail", GameState.get_bond_shards() == 2)
+
+	GameState.set_bond_shards(3)
+	pup["hp"] = 0
+	pup["statuses"] = [{"id": "stun", "turns": 1}]
+	var max_hp := int(pup.get("max_hp", 1))
+	var ok := GameState.try_shard_revive(pup)
+	f += _ok("revive succeeds at 3 shards", bool(ok.get("ok", false)))
+	f += _ok("revive costs 3 shards", GameState.get_bond_shards() == 0)
+	f += _ok("revive restores full hp", int(pup.get("hp", 0)) == max_hp)
+	f += _ok("revive clears statuses", (pup.get("statuses", []) as Array).is_empty())
+	f += _ok("one revive used", GameState.get_shard_revives_used() == 1)
+	f += _ok("two revives left", GameState.get_shard_revives_left() == 2)
+
+	# Cap at 3 uses even with plenty of shards.
+	for i in range(2):
+		GameState.set_bond_shards(5)
+		pup["hp"] = 0
+		var r := GameState.try_shard_revive(pup)
+		f += _ok("revive %d ok" % (i + 2), bool(r.get("ok", false)))
+	f += _ok("revives used hits max", GameState.get_shard_revives_used() == 3)
+	f += _ok("no revives left", GameState.get_shard_revives_left() == 0)
+	GameState.set_bond_shards(5)
+	pup["hp"] = 0
+	f += _ok("fourth revive blocked", not GameState.can_shard_revive())
+	var blocked := GameState.try_shard_revive(pup)
+	f += _ok("fourth try fails", not bool(blocked.get("ok", true)))
+	f += _ok("shards kept when capped", GameState.get_bond_shards() == 5)
 	return f
 
 func _test_level_up() -> int:
