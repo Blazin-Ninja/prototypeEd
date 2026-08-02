@@ -22,6 +22,7 @@ const BATTLE_GFX_SCALE := 1.55
 @onready var bg_accent: ColorRect = $BGAccent
 @onready var enemy_panel: PanelContainer = $Safe/VBox/EnemyPanel
 @onready var player_panel: PanelContainer = $Safe/VBox/PlayerPanel
+@onready var log_panel: PanelContainer = $Safe/VBox/LogPanel
 @onready var fx_layer: Control = $FXLayer
 @onready var heal_btn: Button = $Safe/VBox/Actions/HealBtn
 
@@ -202,6 +203,18 @@ func _style_panels() -> void:
 			accent = Color.html(str(DataRegistry.elements[eid].get("color", "#333333")))
 			accent = Color(accent.r * 0.2, accent.g * 0.18, accent.b * 0.25, 0.65)
 	bg_accent.color = accent
+	# Opaque log chrome above FX so combat subtitles stay readable.
+	var log_style := StyleBoxFlat.new()
+	log_style.bg_color = Color(0.05, 0.09, 0.08, 0.96)
+	log_style.border_color = Color(0.28, 0.48, 0.40, 1.0)
+	log_style.set_border_width_all(2)
+	log_style.set_corner_radius_all(10)
+	log_style.set_content_margin_all(8.0)
+	log_panel.add_theme_stylebox_override("panel", log_style)
+	log_box.add_theme_font_size_override("normal_font_size", 18)
+	log_box.add_theme_color_override("default_color", AppTheme.COL_TEXT)
+	player_view.clip_contents = true
+	enemy_view.clip_contents = true
 
 func _creature_offset(is_player_side: bool) -> Vector2:
 	var lunge := _player_lunge if is_player_side else _enemy_lunge

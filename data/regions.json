@@ -28,7 +28,7 @@
       "next_region": "desert",
       "ground_color": "#1b4332",
       "grass_color": "#2d6a4f",
-      "path_color": "#52796f",
+      "path_color": "#e8ebe8",
       "unlocked_by_default": true,
       "obelisk_count": 4
     },
@@ -60,7 +60,7 @@
       "next_region": "frozen_mountains",
       "ground_color": "#bb9457",
       "grass_color": "#d4a373",
-      "path_color": "#a47148",
+      "path_color": "#f0e0c8",
       "unlocked_by_default": false,
       "stub": false,
       "obelisk_count": 4
@@ -93,7 +93,7 @@
       "next_region": "alien_lab",
       "ground_color": "#ade8f4",
       "grass_color": "#90e0ef",
-      "path_color": "#caf0f8",
+      "path_color": "#d8dce8",
       "unlocked_by_default": false,
       "stub": false,
       "obelisk_count": 4
@@ -126,7 +126,7 @@
       "next_region": "meteor_hive",
       "ground_color": "#3c096c",
       "grass_color": "#5a189a",
-      "path_color": "#7b2cbf",
+      "path_color": "#c8e0f8",
       "unlocked_by_default": false,
       "stub": false,
       "obelisk_count": 5
@@ -159,7 +159,7 @@
       "next_region": null,
       "ground_color": "#10002b",
       "grass_color": "#240046",
-      "path_color": "#5a189a",
+      "path_color": "#f0c8b0",
       "unlocked_by_default": false,
       "stub": false,
       "obelisk_count": 5

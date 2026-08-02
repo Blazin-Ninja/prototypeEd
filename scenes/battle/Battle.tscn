@@ -79,12 +79,14 @@ text = "HP"
 horizontal_alignment = 1
 
 [node name="EView" type="Control" parent="Safe/VBox/EnemyPanel/EnemyMargin/EnemyCol"]
+clip_contents = true
 custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 size_flags_vertical = 3
 
 [node name="LogPanel" type="PanelContainer" parent="Safe/VBox"]
-custom_minimum_size = Vector2(0, 110)
+z_index = 30
+custom_minimum_size = Vector2(0, 170)
 layout_mode = 2
 
 [node name="LogMargin" type="MarginContainer" parent="Safe/VBox/LogPanel"]
@@ -96,8 +98,10 @@ theme_override_constants/margin_bottom = 8
 
 [node name="Log" type="RichTextLabel" parent="Safe/VBox/LogPanel/LogMargin"]
 layout_mode = 2
+theme_override_font_sizes/normal_font_size = 18
 bbcode_enabled = true
 scroll_following = true
+fit_content = false
 
 [node name="PlayerPanel" type="PanelContainer" parent="Safe/VBox"]
 custom_minimum_size = Vector2(0, 250)
@@ -133,6 +137,7 @@ text = "HP"
 horizontal_alignment = 1
 
 [node name="PView" type="Control" parent="Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol"]
+clip_contents = true
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_vertical = 3

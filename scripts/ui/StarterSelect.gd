@@ -2,12 +2,14 @@ extends Control
 
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
+const RunTimer = preload("res://scripts/util/RunTimer.gd")
 
 @onready var list: VBoxContainer = $Safe/VBox/Scroll/List
 @onready var detail: Label = $Safe/VBox/Detail
 @onready var preview: Control = $Safe/VBox/Preview
 @onready var confirm_btn: Button = $Safe/VBox/ConfirmBtn
 @onready var diff_hint: Label = $Safe/VBox/DiffHint
+@onready var fastest_label: Label = $Safe/VBox/FastestLabel
 @onready var easy_btn: Button = $Safe/VBox/DiffRow/EasyBtn
 @onready var normal_btn: Button = $Safe/VBox/DiffRow/NormalBtn
 @onready var hard_btn: Button = $Safe/VBox/DiffRow/HardBtn
@@ -50,6 +52,7 @@ func _set_difficulty(diff_id: String) -> void:
 		DifficultySystem.label(_difficulty),
 		DifficultySystem.description(_difficulty)
 	]
+	fastest_label.text = RunTimer.format_board_lines(GameState.account, _difficulty)
 	GameState.set_preferred_difficulty(_difficulty)
 
 func _build_list() -> void:

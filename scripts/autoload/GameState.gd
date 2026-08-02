@@ -6,6 +6,7 @@ const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
 const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const EncounterSystem = preload("res://scripts/domain/EncounterSystem.gd")
 const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
+const RunTimer = preload("res://scripts/util/RunTimer.gd")
 const BOND_SHARD_CAP := 5
 
 var account: Dictionary = {}
@@ -68,6 +69,9 @@ func continue_run() -> bool:
 		run["difficulty"] = DifficultySystem.normalize(str(run.get("difficulty", DifficultySystem.ID_NORMAL)))
 	if not run.has("explored_maps"):
 		run["explored_maps"] = {}
+		autosave()
+	if not run.has("started_at_ms") or int(run.get("started_at_ms", 0)) <= 0:
+		run["started_at_ms"] = RunTimer.now_ms()
 		autosave()
 	# Ensure companion power fields are sane if an old save somehow carried junk.
 	var companion: Dictionary = run.get("companion", {})
@@ -183,9 +187,11 @@ func _begin_run_with_companion(starter_id: String, companion: Dictionary, diffic
 		"bond_shards": DifficultySystem.starting_bond_shards(diff),
 		"region_floor": 1,
 		"difficulty": diff,
-		"explored_maps": {}
+		"explored_maps": {},
+		"started_at_ms": RunTimer.now_ms()
 	}
 	account["runs_played"] = int(account.get("runs_played", 0)) + 1
+	RunTimer.ensure_board(account)
 	SaveService.save_account(account)
 	autosave()
 
@@ -384,6 +390,8 @@ func mark_boss_defeated(boss_id: String) -> void:
 func end_run(won: bool) -> Dictionary:
 	var companion: Dictionary = get_companion()
 	var tokens := ProgressionSystem.grant_tokens(account, run, won)
+	var started_at := int(run.get("started_at_ms", 0))
+	var elapsed := RunTimer.elapsed_ms(started_at)
 	# Mark dead before wipe so a failed clear_run cannot Continue a leveled corpse.
 	if not run.is_empty():
 		run["alive"] = false
@@ -395,6 +403,7 @@ func end_run(won: bool) -> Dictionary:
 		pending_retry_companion = CreatureFactory.snapshot_for_retry(companion)
 		pending_retry_difficulty = get_difficulty()
 		_persist_pending_retry_to_account()
+	var diff := get_difficulty() if not run.is_empty() else pending_retry_difficulty
 	last_run_report = {
 		"won": won,
 		"tokens": tokens,
@@ -404,7 +413,9 @@ func end_run(won: bool) -> Dictionary:
 		"companion_name": companion.get("name", "?"),
 		"companion_template_id": str(companion.get("template_id", "")),
 		"can_retry": not won and not pending_retry_companion.is_empty(),
-		"difficulty": get_difficulty() if not run.is_empty() else pending_retry_difficulty
+		"difficulty": diff,
+		"elapsed_ms": elapsed,
+		"run_time": RunTimer.format_run_time(elapsed)
 	}
 	account["last_run_summary"] = {
 		"won": won,
@@ -414,19 +425,32 @@ func end_run(won: bool) -> Dictionary:
 		"regions_cleared": last_run_report.get("regions_cleared", []),
 		"companion_name": last_run_report.get("companion_name", "?"),
 		"can_retry": bool(last_run_report.get("can_retry", false)),
-		"difficulty": last_run_report.get("difficulty", DifficultySystem.ID_NORMAL)
+		"difficulty": last_run_report.get("difficulty", DifficultySystem.ID_NORMAL),
+		"elapsed_ms": elapsed,
+		"run_time": RunTimer.format_run_time(elapsed)
 	}
 	if won:
 		account["runs_won"] = int(account.get("runs_won", 0)) + 1
+		RunTimer.record_victory(
+			account,
+			diff,
+			elapsed,
+			str(companion.get("name", "?"))
+		)
 	var best := 0
 	for rid in run.get("regions_cleared", []):
 		best = maxi(best, int(DataRegistry.get_region(str(rid)).get("index", 0)))
 	account["best_region"] = maxi(int(account.get("best_region", 0)), best)
+	RunTimer.ensure_board(account)
 	SaveService.save_account(account)
 	SaveService.clear_run()
 	run = {}
 	EventBus.run_ended.emit(won, tokens)
 	return last_run_report
+
+func get_fastest_runs(difficulty: String = "") -> Array:
+	var diff := difficulty if difficulty != "" else get_preferred_difficulty()
+	return RunTimer.get_fastest(account, diff)
 
 func obelisk_key(region_id: String, cell: Vector2i, floor: int = -1) -> String:
 	var fl := floor if floor > 0 else current_floor()

@@ -169,6 +169,176 @@ def make_path(variant=0):
     return finish(img)
 
 
+# ─── Biome walking grounds ───────────────────────────────────────────────────
+
+def make_path_forest(variant=0):
+    """Cobblestone path for Mutant Forest."""
+    a, b = (88, 92, 98), (148, 150, 158)
+    if variant == 1:
+        a, b = (78, 82, 90), (160, 162, 170)
+    if variant == 2:
+        a, b = (96, 90, 86), (150, 146, 140)
+    img = noise_base(a, b, seed=201 + variant * 13, scale=1.1, light=(-0.45, -0.7))
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(120 + variant * 7)
+    # mortar bed
+    d.rectangle([0, 0, SIZE - 1, SIZE - 1], fill=(54, 56, 60, 70))
+    # irregular cobbles
+    for _ in range(85):
+        x = rnd.randint(4, SIZE - 34)
+        y = rnd.randint(4, SIZE - 28)
+        w = rnd.randint(18, 34)
+        h = rnd.randint(14, 26)
+        stone = mix((110, 112, 118), (170, 172, 180), rnd.random())
+        if variant == 2:
+            stone = mix(stone, (140, 120, 100), 0.25)
+        d.rounded_rectangle([x, y, x + w, y + h], radius=5, fill=rgba(stone, 255), outline=(40, 42, 48, 200), width=2)
+        # highlight edge
+        d.arc([x + 2, y + 1, x + w - 2, y + h // 2], 200, 340, fill=(220, 222, 228, 90), width=2)
+    # moss in cracks
+    for _ in range(18):
+        x, y = rnd.randint(8, SIZE - 16), rnd.randint(8, SIZE - 16)
+        d.ellipse([x, y, x + 8, y + 5], fill=(46, 110, 58, 120))
+    return finish(img)
+
+
+def make_path_desert(variant=0):
+    """Wooden plank path for Ashen Desert."""
+    base = (92, 62, 34) if variant == 0 else ((78, 52, 28) if variant == 1 else (108, 74, 40))
+    img = Image.new("RGBA", (SIZE, SIZE), rgba(shade(base, -0.15)))
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(220 + variant)
+    plank_h = 26
+    y = 4 + (variant % 3) * 4
+    while y < SIZE:
+        tone = mix(base, (180, 130, 78), 0.15 + rnd.random() * 0.35)
+        d.rounded_rectangle(
+            [6, y, SIZE - 7, y + plank_h - 4],
+            radius=3,
+            fill=rgba(tone),
+            outline=(48, 28, 14, 230),
+            width=2,
+        )
+        # grain lines
+        for gx in range(18, SIZE - 18, 22):
+            d.line([(gx, y + 4), (gx + rnd.randint(-2, 2), y + plank_h - 8)], fill=(40, 24, 12, 90), width=1)
+        d.line([(14, y + 6), (SIZE - 14, y + 6)], fill=(220, 180, 120, 70), width=2)
+        # nail heads
+        for nx in (28, SIZE // 2, SIZE - 28):
+            d.ellipse([nx - 2, y + plank_h // 2 - 3, nx + 2, y + plank_h // 2 + 1], fill=(50, 40, 30, 200))
+        y += plank_h
+    d.rectangle([0, 0, 8, SIZE - 1], fill=(40, 24, 12, 255))
+    d.rectangle([SIZE - 9, 0, SIZE - 1, SIZE - 1], fill=(40, 24, 12, 255))
+    return finish(img)
+
+
+def make_path_frozen(variant=0):
+    """Black plank path for Frozen Mountains."""
+    base = (18, 18, 22) if variant == 0 else ((12, 14, 18) if variant == 1 else (28, 28, 34))
+    img = Image.new("RGBA", (SIZE, SIZE), rgba(base))
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(330 + variant)
+    plank_h = 24
+    y = 2 + variant * 3
+    while y < SIZE:
+        tone = mix(base, (70, 72, 80), 0.1 + rnd.random() * 0.35)
+        d.rounded_rectangle(
+            [5, y, SIZE - 6, y + plank_h - 3],
+            radius=2,
+            fill=rgba(tone),
+            outline=(4, 4, 6, 255),
+            width=2,
+        )
+        d.line([(12, y + 5), (SIZE - 12, y + 5)], fill=(120, 125, 140, 55), width=1)
+        d.line([(16, y + plank_h - 8), (SIZE - 16, y + plank_h - 8)], fill=(0, 0, 0, 120), width=2)
+        # frost flecks
+        for _ in range(4):
+            fx = rnd.randint(20, SIZE - 20)
+            fy = y + rnd.randint(4, plank_h - 8)
+            d.point((fx, fy), fill=(200, 220, 240, 140))
+        y += plank_h
+    d.rectangle([0, 0, 7, SIZE - 1], fill=(6, 6, 8, 255))
+    d.rectangle([SIZE - 8, 0, SIZE - 1, SIZE - 1], fill=(6, 6, 8, 255))
+    return finish(img)
+
+
+def make_path_alien(variant=0):
+    """Blue marble path for Alien Laboratory."""
+    a, b = (40, 70, 120), (120, 170, 210)
+    if variant == 1:
+        a, b = (30, 55, 110), (100, 160, 220)
+    if variant == 2:
+        a, b = (50, 80, 130), (150, 200, 230)
+    img = noise_base(a, b, seed=410 + variant * 9, scale=0.95, light=(-0.35, -0.75))
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(410 + variant)
+    # polished sheen bands
+    for i in range(5):
+        y0 = 20 + i * 45 + variant * 6
+        d.arc([10, y0 - 40, SIZE - 10, y0 + 40], 200, 340, fill=(210, 235, 255, 55), width=3)
+    # marble veins
+    for _ in range(14):
+        x0, y0 = rnd.randint(10, SIZE - 10), rnd.randint(10, SIZE - 10)
+        pts = [(x0, y0)]
+        for _step in range(6):
+            x0 += rnd.randint(-18, 22)
+            y0 += rnd.randint(-8, 18)
+            pts.append((x0, y0))
+        d.line(pts, fill=(230, 245, 255, 160), width=2)
+        d.line([(p[0] + 1, p[1] + 1) for p in pts], fill=(20, 40, 80, 90), width=1)
+    # subtle tile seams
+    d.line([(SIZE // 2, 0), (SIZE // 2, SIZE)], fill=(20, 40, 70, 50), width=2)
+    d.line([(0, SIZE // 2), (SIZE, SIZE // 2)], fill=(20, 40, 70, 50), width=2)
+    return finish(img)
+
+
+def make_path_meteor(variant=0):
+    """Reddish lava-rock walking ground for Meteor Hive (solid, not hazard lava)."""
+    a, b = (70, 28, 22), (140, 55, 35)
+    if variant == 1:
+        a, b = (55, 20, 18), (160, 70, 40)
+    if variant == 2:
+        a, b = (80, 32, 24), (120, 48, 30)
+    img = noise_base(a, b, seed=520 + variant * 11, scale=1.2, light=(-0.5, -0.6))
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(520 + variant)
+    # cracked rock plates
+    for _ in range(40):
+        x, y = rnd.randint(6, SIZE - 40), rnd.randint(6, SIZE - 36)
+        w, h = rnd.randint(22, 42), rnd.randint(16, 34)
+        rock = mix((90, 35, 28), (160, 70, 42), rnd.random())
+        d.polygon(
+            [
+                (x, y + h // 2),
+                (x + w // 3, y),
+                (x + w, y + h // 3),
+                (x + w - 4, y + h),
+                (x + 4, y + h - 2),
+            ],
+            fill=rgba(rock, 230),
+            outline=(30, 10, 8, 200),
+        )
+    # ember glow in cracks (cooled lava look)
+    for _ in range(22):
+        x, y = rnd.randint(12, SIZE - 12), rnd.randint(12, SIZE - 12)
+        glow = (255, 120, 40, 140) if rnd.random() > 0.4 else (200, 50, 20, 110)
+        d.ellipse([x, y, x + 6, y + 4], fill=glow)
+    # dark ash dust
+    for _ in range(30):
+        x, y = rnd.randint(4, SIZE - 4), rnd.randint(4, SIZE - 4)
+        d.point((x, y), fill=(20, 10, 8, 160))
+    return finish(img)
+
+
+BIOME_PATH_MAKERS = {
+    "forest": make_path_forest,
+    "desert": make_path_desert,
+    "frozen_mountains": make_path_frozen,
+    "alien_lab": make_path_alien,
+    "meteor_hive": make_path_meteor,
+}
+
+
 # ─── Cliff / wall ────────────────────────────────────────────────────────────
 
 def make_cliff(variant=0):
@@ -466,6 +636,9 @@ def main():
         mapping[f"grass{'' if i == 0 else f'_{i}'}.png"] = make_grass(i)
     for i in range(3):
         mapping[f"path{'' if i == 0 else f'_{i}'}.png"] = make_path(i)
+    for biome, maker in BIOME_PATH_MAKERS.items():
+        for i in range(3):
+            mapping[f"path_{biome}_{i}.png"] = maker(i)
     for i in range(3):
         mapping[f"cliff{'' if i == 0 else f'_{i}'}.png"] = make_cliff(i)
     mapping["wall.png"] = make_wall(0)

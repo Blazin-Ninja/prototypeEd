@@ -9,8 +9,23 @@ func load_account() -> Dictionary:
 	if data.is_empty():
 		data = _default_account()
 		save_account(data)
+	var dirty := false
 	if not data.has("preferred_difficulty"):
 		data["preferred_difficulty"] = "normal"
+		dirty = true
+	if not data.has("fastest_runs") or typeof(data.get("fastest_runs")) != TYPE_DICTIONARY:
+		data["fastest_runs"] = {
+			"easy": [],
+			"normal": [],
+			"hard": []
+		}
+		dirty = true
+	else:
+		for id in ["easy", "normal", "hard"]:
+			if not data["fastest_runs"].has(id):
+				data["fastest_runs"][id] = []
+				dirty = true
+	if dirty:
 		save_account(data)
 	return data
 
@@ -57,7 +72,12 @@ func _default_account() -> Dictionary:
 		"runs_won": 0,
 		"best_region": 0,
 		"last_run_summary": {},
-		"preferred_difficulty": "normal"
+		"preferred_difficulty": "normal",
+		"fastest_runs": {
+			"easy": [],
+			"normal": [],
+			"hard": []
+		}
 	}
 
 func _read(path: String) -> Dictionary:

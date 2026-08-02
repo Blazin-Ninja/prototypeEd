@@ -24,9 +24,9 @@ static func draw_tile(
 			_blit(ci, _pick(["grass", "grass_1", "grass_2", "grass_3"], v), rect, grass_tint)
 			_maybe_blit_prop(ci, rect, biome, cell, true)
 		MapGenerator.TILE_PATH:
-			_blit(ci, _pick(["path", "path_1", "path_2"], v), rect, path_tint)
-			if biome == "desert" and _prop_seed(cell, 17) % 5 == 0:
-				_blit(ci, _pick(["dune", "dune_1", "dune_2"], v), rect, Color(1, 1, 1, 0.88))
+			_blit(ci, _path_key(biome, v), rect, _path_modulate(path_tint))
+			if biome == "desert" and _prop_seed(cell, 17) % 8 == 0:
+				_blit(ci, _pick(["dune", "dune_1", "dune_2"], v), rect, Color(1, 1, 1, 0.55))
 		MapGenerator.TILE_WALL:
 			_blit(ci, _pick(["cliff", "cliff_1", "cliff_2"], v), rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_ROCK:
@@ -43,7 +43,7 @@ static func draw_tile(
 		MapGenerator.TILE_BOSS:
 			_blit(ci, "boss", rect, Color(1, 1, 1, 1))
 		MapGenerator.TILE_OBELISK:
-			_blit(ci, _pick(["path", "path_1", "path_2"], v), rect, path_tint)
+			_blit(ci, _path_key(biome, v), rect, _path_modulate(path_tint))
 			_blit(ci, "obelisk", rect, obelisk_tint)
 		MapGenerator.TILE_WATER:
 			# Slight overlap hides any residual seam between pond cells.
@@ -100,6 +100,23 @@ static func _maybe_blit_prop(
 		_:
 			if on_grass and roll < 2:
 				_blit_tree(ci, _pick(["tree", "tree_1"], v), rect, Color(1, 1, 1, 0.75))
+
+static func _path_key(biome: String, variant: int) -> String:
+	var id := biome.strip_edges().to_lower()
+	match id:
+		"forest", "desert", "frozen_mountains", "alien_lab", "meteor_hive":
+			return "path_%s_%d" % [id, variant % 3]
+		_:
+			return _pick(["path", "path_1", "path_2"], variant)
+
+static func _path_modulate(path_tint: Color) -> Color:
+	## Biome path art is already colored; keep light tint so art reads clearly.
+	return Color(
+		clampf(path_tint.r * 0.25 + 0.75, 0.7, 1.0),
+		clampf(path_tint.g * 0.25 + 0.75, 0.7, 1.0),
+		clampf(path_tint.b * 0.25 + 0.75, 0.7, 1.0),
+		1.0
+	)
 
 static func _pick(keys: Array, variant: int) -> String:
 	if keys.is_empty():

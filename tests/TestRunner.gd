@@ -13,6 +13,7 @@ const MutationSystem = preload("res://scripts/domain/MutationSystem.gd")
 const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 const MapGenerator = preload("res://scripts/domain/MapGenerator.gd")
 const ProgressionSystem = preload("res://scripts/domain/ProgressionSystem.gd")
+const RunTimer = preload("res://scripts/util/RunTimer.gd")
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 
 func _ready() -> void:
@@ -34,6 +35,7 @@ func _ready() -> void:
 	failed += _test_wild_respawn()
 	failed += _test_wild_elements_and_boss_scaling()
 	failed += _test_graphics_assets()
+	failed += _test_run_timer_board()
 	failed += _test_progression_starters()
 	if failed == 0:
 		print("ALL TESTS PASSED")
@@ -522,6 +524,11 @@ func _test_graphics_assets() -> int:
 	f += _ok("tree variants present", ResourceLoader.exists("res://assets/tiles/tree_1.png") and ResourceLoader.exists("res://assets/tiles/tree_2.png") and ResourceLoader.exists("res://assets/tiles/tree_3.png"))
 	f += _ok("dune variants present", ResourceLoader.exists("res://assets/tiles/dune.png") and ResourceLoader.exists("res://assets/tiles/dune_1.png") and ResourceLoader.exists("res://assets/tiles/dune_2.png"))
 	f += _ok("cliff tile present", ResourceLoader.exists("res://assets/tiles/cliff.png") and ResourceLoader.exists("res://assets/tiles/cliff_2.png"))
+	f += _ok("forest cobble path present", ResourceLoader.exists("res://assets/tiles/path_forest_0.png") and ResourceLoader.exists("res://assets/tiles/path_forest_2.png"))
+	f += _ok("desert plank path present", ResourceLoader.exists("res://assets/tiles/path_desert_0.png"))
+	f += _ok("frozen black plank path present", ResourceLoader.exists("res://assets/tiles/path_frozen_mountains_0.png"))
+	f += _ok("alien marble path present", ResourceLoader.exists("res://assets/tiles/path_alien_lab_0.png"))
+	f += _ok("meteor lava-rock path present", ResourceLoader.exists("res://assets/tiles/path_meteor_hive_0.png"))
 	var grass_tex = load("res://assets/tiles/grass.png")
 	f += _ok("grass hi-res terrain", grass_tex != null and grass_tex.get_width() >= 256)
 	f += _ok("water anim present", ResourceLoader.exists("res://assets/tiles/water_0.png"))
@@ -539,6 +546,43 @@ func _test_graphics_assets() -> int:
 	f += _ok("mutation horns present", ResourceLoader.exists("res://assets/mutations/horns/horns_small.png"))
 	var theme = AppTheme.get_theme()
 	f += _ok("app theme builds", theme != null)
+	return f
+
+func _test_run_timer_board() -> int:
+	var f := 0
+	f += _ok("format under an hour", RunTimer.format_run_time(125000) == "2:05")
+	f += _ok("format with hours", RunTimer.format_run_time(3723000) == "1:02:03")
+	f += _ok("elapsed non-negative", RunTimer.elapsed_ms(1000, 500) == 0)
+	f += _ok("elapsed basic", RunTimer.elapsed_ms(1000, 3500) == 2500)
+	# Fresh account board.
+	var account := {
+		"fastest_runs": {}
+	}
+	RunTimer.ensure_board(account)
+	f += _ok("board has three diffs", (account["fastest_runs"] as Dictionary).has("easy") and (account["fastest_runs"] as Dictionary).has("hard"))
+	# Losses must not write the board — only victories.
+	GameState.account = SaveService.load_account()
+	GameState.account["fastest_runs"] = RunTimer.empty_board()
+	GameState.start_new_run("ember_pup", "normal")
+	f += _ok("run stamps started_at", int(GameState.run.get("started_at_ms", 0)) > 0)
+	# Force a known start so elapsed is deterministic.
+	GameState.run["started_at_ms"] = RunTimer.now_ms() - 45000
+	var loss := GameState.end_run(false)
+	f += _ok("loss reports elapsed", int(loss.get("elapsed_ms", 0)) >= 40000)
+	f += _ok("loss reports run_time string", str(loss.get("run_time", "")) != "")
+	f += _ok("loss does not record fastest", RunTimer.get_fastest(GameState.account, "normal").is_empty())
+	# Four wins — keep only the three fastest.
+	for ms_ago in [90000, 60000, 120000, 30000]:
+		GameState.start_new_run("ember_pup", "hard")
+		GameState.run["started_at_ms"] = RunTimer.now_ms() - ms_ago
+		GameState.end_run(true)
+	var hard_board: Array = RunTimer.get_fastest(GameState.account, "hard")
+	f += _ok("hard board capped at 3", hard_board.size() == 3)
+	f += _ok("hard board sorted fastest first", int(hard_board[0].get("elapsed_ms", 999999)) <= int(hard_board[1].get("elapsed_ms", 0)))
+	f += _ok("hard board excludes slowest", int(hard_board[2].get("elapsed_ms", 0)) <= 90000)
+	f += _ok("normal board still empty", RunTimer.get_fastest(GameState.account, "normal").is_empty())
+	var lines := RunTimer.format_board_lines(GameState.account, "hard")
+	f += _ok("board lines mention clears", lines.contains("Fastest clears"))
 	return f
 
 func _test_progression_starters() -> int:
