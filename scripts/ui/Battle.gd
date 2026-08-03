@@ -5,6 +5,7 @@ const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 const BattleArt = preload("res://scripts/util/BattleArt.gd")
 const BATTLE_GFX_SCALE := 1.55
+const TEST_MODE := true ## Infinite heal cheat (mirrors overworld HEAL Test).
 
 @onready var log_box: RichTextLabel = $Safe/VBox/LogPanel/LogMargin/Log
 @onready var player_hp: ProgressBar = $Safe/VBox/PlayerPanel/PlayerMargin/PlayerCol/PHP
@@ -25,6 +26,7 @@ const BATTLE_GFX_SCALE := 1.55
 @onready var log_panel: PanelContainer = $Safe/VBox/LogPanel
 @onready var fx_layer: Control = $FXLayer
 @onready var heal_btn: Button = $Safe/VBox/Actions/HealBtn
+@onready var test_heal_btn: Button = $Safe/VBox/Actions/TestHealBtn
 @onready var revive_row: HBoxContainer = $Safe/VBox/ReviveRow
 @onready var revive_btn: Button = $Safe/VBox/ReviveRow/ReviveBtn
 @onready var give_up_btn: Button = $Safe/VBox/ReviveRow/GiveUpBtn
@@ -77,6 +79,9 @@ func _ready() -> void:
 	$Safe/VBox/Actions/FleeBtn.pressed.connect(_flee)
 	$Safe/VBox/Actions/FleeBtn.disabled = not can_flee
 	heal_btn.pressed.connect(_use_bond_shard)
+	test_heal_btn.visible = TEST_MODE
+	if TEST_MODE:
+		test_heal_btn.pressed.connect(_test_heal)
 	revive_btn.pressed.connect(_confirm_shard_revive)
 	give_up_btn.pressed.connect(_confirm_give_up)
 	revive_row.visible = false
@@ -115,6 +120,18 @@ func _apply_arena_backdrop() -> void:
 		bg.color = Color(0.02, 0.03, 0.05, 0.35)
 	if bg_accent:
 		bg_accent.color = Color(0.05, 0.05, 0.08, 0.25)
+
+func _test_heal() -> void:
+	## Debug cheat: full HP + clear statuses. Does not spend a turn or shards.
+	if not TEST_MODE:
+		return
+	if _awaiting_revive_choice:
+		return
+	player["hp"] = int(player.get("max_hp", player.get("stats", {}).get("hp", 1)))
+	player["statuses"] = []
+	GameState.set_companion(player)
+	_append("TEST HEAL — companion fully restored.")
+	_refresh()
 
 func _use_bond_shard() -> void:
 	if busy:
@@ -448,6 +465,9 @@ func _set_actions_enabled(on: bool) -> void:
 		var can_shard := GameState.can_use_bond_shard() and int(player.get("hp", 0)) < int(player.get("max_hp", 1))
 		heal_btn.disabled = not can_shard
 		heal_btn.text = "SHARD\n%d/%d" % [GameState.get_bond_shards(), GameState.BOND_SHARD_CAP]
+		# Test heal stays available whenever actions are on (debug cheat).
+		if TEST_MODE and test_heal_btn:
+			test_heal_btn.disabled = false
 
 func _show_abilities() -> void:
 	if busy:
