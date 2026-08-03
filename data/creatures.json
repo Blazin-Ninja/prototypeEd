@@ -68,6 +68,83 @@
         "special_mutation_pool": [
           "burning_aura"
         ]
+      },
+      "evolves_to": "blazen_ninja",
+      "evolve_level": 8
+    },
+    {
+      "id": "blazen_ninja",
+      "name": "Blazen Ninja",
+      "description": "Blazen fully ignited \u2014 a blazing ninja form forged in meteor fire.",
+      "base_stats": {
+        "hp": 118,
+        "attack": 21,
+        "defense": 15,
+        "speed": 17,
+        "special_attack": 20,
+        "special_defense": 15,
+        "accuracy": 97,
+        "critical_chance": 12
+      },
+      "elements": [
+        "fire",
+        "earth"
+      ],
+      "families": [
+        "beast",
+        "dragon"
+      ],
+      "abilities": [
+        "fire_bite",
+        "flame_burst",
+        "slash"
+      ],
+      "color": "#dc2f02",
+      "shape": "quad",
+      "absorption": {
+        "stat_chance": 70,
+        "stat_gains": {
+          "attack": [
+            2,
+            4
+          ],
+          "special_attack": [
+            2,
+            4
+          ],
+          "speed": [
+            1,
+            3
+          ],
+          "hp": [
+            2,
+            5
+          ]
+        },
+        "ability_chance": 32,
+        "ability_pool": [
+          "fire_bite",
+          "flame_burst",
+          "slash"
+        ],
+        "element_chance": 22,
+        "element_pool": [
+          "fire",
+          "earth"
+        ],
+        "mutation_chance": 50,
+        "mutation_pool": [
+          "fur_thick",
+          "tail_flame",
+          "fangs_long",
+          "particles_embers",
+          "horns_small"
+        ],
+        "rare_passive_chance": 12,
+        "special_mutation_chance": 8,
+        "special_mutation_pool": [
+          "burning_aura"
+        ]
       }
     },
     {
@@ -979,9 +1056,18 @@
       "absorption": {
         "stat_chance": 64,
         "stat_gains": {
-          "attack": [1, 3],
-          "special_attack": [1, 3],
-          "defense": [1, 2]
+          "attack": [
+            1,
+            3
+          ],
+          "special_attack": [
+            1,
+            3
+          ],
+          "defense": [
+            1,
+            2
+          ]
         },
         "ability_chance": 26,
         "ability_pool": [
@@ -1045,10 +1131,22 @@
       "absorption": {
         "stat_chance": 70,
         "stat_gains": {
-          "attack": [2, 4],
-          "special_attack": [2, 4],
-          "defense": [1, 3],
-          "hp": [2, 5]
+          "attack": [
+            2,
+            4
+          ],
+          "special_attack": [
+            2,
+            4
+          ],
+          "defense": [
+            1,
+            3
+          ],
+          "hp": [
+            2,
+            5
+          ]
         },
         "ability_chance": 32,
         "ability_pool": [

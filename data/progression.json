@@ -11,16 +11,20 @@
       "description": "Add Beaver Weaver to starter selection.",
       "cost": 0,
       "type": "starter",
-      "payload": {"starter_id": "tide_fin"},
+      "payload": {
+        "starter_id": "tide_fin"
+      },
       "default_owned": true
     },
     {
       "id": "starter_ember_pup",
       "name": "Unlock Blazen Mouse",
-      "description": "Add Blazen Mouse to starter selection.",
+      "description": "Add Blazen Mouse to starter selection. Evolves into Blazen Ninja at Lv 8.",
       "cost": 0,
       "type": "starter",
-      "payload": {"starter_id": "ember_pup"},
+      "payload": {
+        "starter_id": "ember_pup"
+      },
       "default_owned": true
     },
     {
@@ -29,7 +33,9 @@
       "description": "Add Willow Tree to starter selection.",
       "cost": 3,
       "type": "starter",
-      "payload": {"starter_id": "sproutling"},
+      "payload": {
+        "starter_id": "sproutling"
+      },
       "default_owned": false
     },
     {
@@ -38,7 +44,9 @@
       "description": "Add SophaPeya to starter selection.",
       "cost": 5,
       "type": "starter",
-      "payload": {"starter_id": "gale_hatch"},
+      "payload": {
+        "starter_id": "gale_hatch"
+      },
       "default_owned": false
     },
     {
@@ -47,7 +55,9 @@
       "description": "Add Thunder Up to starter selection.",
       "cost": 5,
       "type": "starter",
-      "payload": {"starter_id": "volt_cub"},
+      "payload": {
+        "starter_id": "volt_cub"
+      },
       "default_owned": false
     },
     {
@@ -56,7 +66,9 @@
       "description": "Add Toxie Bane to starter selection. Evolves into Dread Basilisk at Lv 8.",
       "cost": 4,
       "type": "starter",
-      "payload": {"starter_id": "basilisk"},
+      "payload": {
+        "starter_id": "basilisk"
+      },
       "default_owned": true
     },
     {
@@ -65,7 +77,9 @@
       "description": "Increase Alpha spawn chance (+1%).",
       "cost": 4,
       "type": "alpha_rate",
-      "payload": {"bonus": 0.01},
+      "payload": {
+        "bonus": 0.01
+      },
       "default_owned": false
     },
     {
@@ -74,7 +88,10 @@
       "description": "Start runs with +5 max HP.",
       "cost": 3,
       "type": "starting_passive",
-      "payload": {"stat": "hp", "bonus": 5},
+      "payload": {
+        "stat": "hp",
+        "bonus": 5
+      },
       "default_owned": false
     },
     {
@@ -83,7 +100,9 @@
       "description": "Slightly better absorption success odds.",
       "cost": 6,
       "type": "absorb_bonus",
-      "payload": {"multiplier": 1.1},
+      "payload": {
+        "multiplier": 1.1
+      },
       "default_owned": false
     }
   ]

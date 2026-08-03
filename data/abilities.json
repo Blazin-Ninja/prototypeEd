@@ -5,7 +5,7 @@
       "name": "Scratch",
       "description": "A basic claw swipe.",
       "power": 40,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "physical",
       "element": null,
       "status": null,
@@ -13,14 +13,16 @@
       "crit_bonus": 0,
       "chain": "claw_chain",
       "tier": 1,
-      "families": ["beast"]
+      "families": [
+        "beast"
+      ]
     },
     {
       "id": "slash",
       "name": "Slash",
       "description": "A sharper cutting strike.",
       "power": 60,
-      "accuracy": 100,
+      "accuracy": 90,
       "category": "physical",
       "element": null,
       "status": null,
@@ -28,7 +30,9 @@
       "crit_bonus": 5,
       "chain": "claw_chain",
       "tier": 2,
-      "families": ["beast"]
+      "families": [
+        "beast"
+      ]
     },
     {
       "id": "rending_slash",
@@ -43,7 +47,10 @@
       "crit_bonus": 10,
       "chain": "claw_chain",
       "tier": 3,
-      "families": ["beast", "dragon"]
+      "families": [
+        "beast",
+        "dragon"
+      ]
     },
     {
       "id": "execution_strike",
@@ -58,14 +65,17 @@
       "crit_bonus": 20,
       "chain": "claw_chain",
       "tier": 4,
-      "families": ["beast", "dragon"]
+      "families": [
+        "beast",
+        "dragon"
+      ]
     },
     {
       "id": "bite",
       "name": "Bite",
       "description": "A snapping jaw attack.",
       "power": 45,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "physical",
       "element": null,
       "status": null,
@@ -73,7 +83,11 @@
       "crit_bonus": 0,
       "chain": "bite_chain",
       "tier": 1,
-      "families": ["beast", "dragon", "aquatic"]
+      "families": [
+        "beast",
+        "dragon",
+        "aquatic"
+      ]
     },
     {
       "id": "fire_bite",
@@ -88,14 +102,17 @@
       "crit_bonus": 5,
       "chain": "bite_chain",
       "tier": 2,
-      "families": ["beast", "dragon"]
+      "families": [
+        "beast",
+        "dragon"
+      ]
     },
     {
       "id": "ember",
       "name": "Ember",
       "description": "A small flame burst.",
       "power": 40,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "special",
       "element": "fire",
       "status": "burn",
@@ -103,7 +120,10 @@
       "crit_bonus": 0,
       "chain": "fire_chain",
       "tier": 1,
-      "families": ["dragon", "beast"]
+      "families": [
+        "dragon",
+        "beast"
+      ]
     },
     {
       "id": "flame_burst",
@@ -118,14 +138,16 @@
       "crit_bonus": 5,
       "chain": "fire_chain",
       "tier": 2,
-      "families": ["dragon"]
+      "families": [
+        "dragon"
+      ]
     },
     {
       "id": "water_pulse",
       "name": "Water Pulse",
       "description": "A pulsing wave of water.",
       "power": 50,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "special",
       "element": "water",
       "status": null,
@@ -133,7 +155,9 @@
       "crit_bonus": 0,
       "chain": "water_chain",
       "tier": 1,
-      "families": ["aquatic"]
+      "families": [
+        "aquatic"
+      ]
     },
     {
       "id": "tidal_crash",
@@ -148,14 +172,16 @@
       "crit_bonus": 5,
       "chain": "water_chain",
       "tier": 2,
-      "families": ["aquatic"]
+      "families": [
+        "aquatic"
+      ]
     },
     {
       "id": "vine_lash",
       "name": "Vine Lash",
       "description": "Whipping vines.",
       "power": 45,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "physical",
       "element": "nature",
       "status": "poison",
@@ -163,7 +189,9 @@
       "crit_bonus": 0,
       "chain": "nature_chain",
       "tier": 1,
-      "families": ["plant"]
+      "families": [
+        "plant"
+      ]
     },
     {
       "id": "bloom_burst",
@@ -178,14 +206,16 @@
       "crit_bonus": 5,
       "chain": "nature_chain",
       "tier": 2,
-      "families": ["plant"]
+      "families": [
+        "plant"
+      ]
     },
     {
       "id": "gust",
       "name": "Gust",
       "description": "A cutting gust of air.",
       "power": 40,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "special",
       "element": "wind",
       "status": null,
@@ -193,7 +223,9 @@
       "crit_bonus": 5,
       "chain": "wind_chain",
       "tier": 1,
-      "families": ["bird"]
+      "families": [
+        "bird"
+      ]
     },
     {
       "id": "tempest_dive",
@@ -208,14 +240,16 @@
       "crit_bonus": 15,
       "chain": "wind_chain",
       "tier": 2,
-      "families": ["bird"]
+      "families": [
+        "bird"
+      ]
     },
     {
       "id": "spark",
       "name": "Spark",
       "description": "A jolt of static.",
       "power": 40,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "special",
       "element": "electric",
       "status": "stun",
@@ -223,7 +257,10 @@
       "crit_bonus": 0,
       "chain": "electric_chain",
       "tier": 1,
-      "families": ["beast", "construct"]
+      "families": [
+        "beast",
+        "construct"
+      ]
     },
     {
       "id": "thunder_fang",
@@ -238,14 +275,16 @@
       "crit_bonus": 5,
       "chain": "electric_chain",
       "tier": 2,
-      "families": ["beast"]
+      "families": [
+        "beast"
+      ]
     },
     {
       "id": "pebble_shot",
       "name": "Pebble Shot",
       "description": "Hurls packed earth.",
       "power": 40,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "physical",
       "element": "earth",
       "status": null,
@@ -253,7 +292,10 @@
       "crit_bonus": 0,
       "chain": "earth_chain",
       "tier": 1,
-      "families": ["beast", "construct"]
+      "families": [
+        "beast",
+        "construct"
+      ]
     },
     {
       "id": "quake_slam",
@@ -268,14 +310,17 @@
       "crit_bonus": 5,
       "chain": "earth_chain",
       "tier": 2,
-      "families": ["beast", "construct"]
+      "families": [
+        "beast",
+        "construct"
+      ]
     },
     {
       "id": "sting",
       "name": "Sting",
       "description": "A venomous jab.",
       "power": 35,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "physical",
       "element": "poison",
       "status": "poison",
@@ -283,7 +328,9 @@
       "crit_bonus": 0,
       "chain": "poison_chain",
       "tier": 1,
-      "families": ["insect"]
+      "families": [
+        "insect"
+      ]
     },
     {
       "id": "toxin_spray",
@@ -298,14 +345,17 @@
       "crit_bonus": 0,
       "chain": "poison_chain",
       "tier": 2,
-      "families": ["insect", "alien"]
+      "families": [
+        "insect",
+        "alien"
+      ]
     },
     {
       "id": "shadow_nudge",
       "name": "Shadow Nudge",
       "description": "A brush of void energy.",
       "power": 45,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "special",
       "element": "shadow",
       "status": null,
@@ -313,7 +363,10 @@
       "crit_bonus": 5,
       "chain": "shadow_chain",
       "tier": 1,
-      "families": ["alien", "shadow"]
+      "families": [
+        "alien",
+        "shadow"
+      ]
     },
     {
       "id": "void_rend",
@@ -328,14 +381,16 @@
       "crit_bonus": 10,
       "chain": "shadow_chain",
       "tier": 2,
-      "families": ["alien"]
+      "families": [
+        "alien"
+      ]
     },
     {
       "id": "harden",
       "name": "Harden",
       "description": "Raises defense for a moment (deals light damage).",
       "power": 20,
-      "accuracy": 100,
+      "accuracy": 95,
       "category": "physical",
       "element": "metal",
       "status": null,
@@ -343,7 +398,10 @@
       "crit_bonus": 0,
       "chain": "guard_chain",
       "tier": 1,
-      "families": ["construct", "insect"]
+      "families": [
+        "construct",
+        "insect"
+      ]
     },
     {
       "id": "forest_wrath",
@@ -358,14 +416,17 @@
       "crit_bonus": 10,
       "chain": "boss_forest",
       "tier": 1,
-      "families": ["plant", "beast"]
+      "families": [
+        "plant",
+        "beast"
+      ]
     },
     {
       "id": "alpha_roar",
       "name": "Alpha Roar",
       "description": "Exclusive alpha intimidation blast.",
       "power": 70,
-      "accuracy": 100,
+      "accuracy": 90,
       "category": "special",
       "element": null,
       "status": "stun",
@@ -373,7 +434,10 @@
       "crit_bonus": 5,
       "chain": "alpha_exclusive",
       "tier": 1,
-      "families": ["beast", "dragon"]
+      "families": [
+        "beast",
+        "dragon"
+      ]
     }
   ],
   "max_abilities": 6
