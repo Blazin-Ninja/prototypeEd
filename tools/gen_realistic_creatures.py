@@ -13,8 +13,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
 
-ROOT = Path("/workspace/assets")
-DATA = Path("/workspace/data")
+_REPO = Path(__file__).resolve().parents[1]
+ROOT = _REPO / "assets"
+DATA = _REPO / "data"
 CREATURES = ROOT / "creatures"
 BOSSES = ROOT / "bosses"
 CREATURES.mkdir(parents=True, exist_ok=True)

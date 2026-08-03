@@ -8,7 +8,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
-TILES = Path("/workspace/assets/tiles")
+_REPO = Path(__file__).resolve().parents[1]
+TILES = _REPO / "assets" / "tiles"
+TILES.mkdir(parents=True, exist_ok=True)
 SIZE = 256
 
 

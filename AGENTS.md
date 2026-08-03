@@ -37,6 +37,7 @@ Commands (run from repo root):
   — prints `ALL TESTS PASSED` and exits 0 on success.
 - Run the game (GUI): use the rendering-driver command above.
 - Android/Web export requires export templates + Android SDK/JDK (see `README.md`); not set up here.
-
-Note: the `main` branch is a placeholder (README only). The actual game lives on the
-`cursor/*` feature branches.
+- Art regen (local): `pip install -r tools/requirements.txt`, then run scripts under `tools/`
+  (see `tools/README.md`). Do **not** regenerate the full `assets/` set with an LLM/image model —
+  creatures use modular mutation overlays and tiles need seamless variants; improve the Pillow
+  generators instead. Optional image models are fine only for a few hero/icon shots.

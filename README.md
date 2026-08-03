@@ -20,6 +20,20 @@ You bond with **one** companion for the entire run. Defeat enemies and choose to
 
 - Godot **4.3** stable
 - For Android APK: Android SDK 24+, Godot Android export templates, JDK 17
+- For regenerating art: Python 3.10+ and Pillow (`pip install -r tools/requirements.txt`)
+
+## Graphics
+
+Game sprites/tiles are generated offline with Pillow scripts under [`tools/`](tools/). See [`tools/README.md`](tools/README.md) for setup, which scripts to run, and why **not** to replace the pipeline with LLM/AI image generation for the full asset set (mutation overlays and seamless tiles need consistent modular art).
+
+```bash
+pip install -r tools/requirements.txt
+python3 tools/gen_realistic_creatures.py
+python3 tools/gen_terrain_ultra.py
+python3 tools/gen_realistic_flora_water.py
+```
+
+Reimport in Godot after regenerating PNGs.
 
 ## Run (editor / desktop)
 
