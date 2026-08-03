@@ -25,6 +25,7 @@ const BATTLE_GFX_SCALE := 1.55
 @onready var log_panel: PanelContainer = $Safe/VBox/LogPanel
 @onready var fx_layer: Control = $FXLayer
 @onready var heal_btn: Button = $Safe/VBox/Actions/HealBtn
+@onready var test_heal_btn: Button = $Safe/VBox/Actions/TestHealBtn
 @onready var revive_row: HBoxContainer = $Safe/VBox/ReviveRow
 @onready var revive_btn: Button = $Safe/VBox/ReviveRow/ReviveBtn
 @onready var give_up_btn: Button = $Safe/VBox/ReviveRow/GiveUpBtn
@@ -77,6 +78,7 @@ func _ready() -> void:
 	$Safe/VBox/Actions/FleeBtn.pressed.connect(_flee)
 	$Safe/VBox/Actions/FleeBtn.disabled = not can_flee
 	heal_btn.pressed.connect(_use_bond_shard)
+	test_heal_btn.pressed.connect(_use_test_heal)
 	revive_btn.pressed.connect(_confirm_shard_revive)
 	give_up_btn.pressed.connect(_confirm_give_up)
 	revive_row.visible = false
@@ -161,6 +163,22 @@ func _use_bond_shard() -> void:
 	_refresh()
 	await get_tree().create_timer(0.25).timeout
 	await _finish_player_action_turn()
+
+func _use_test_heal() -> void:
+	## TEMP debug: free full heal, does not spend a turn or shards. Remove later.
+	if busy or _awaiting_revive_choice:
+		return
+	ability_list.visible = false
+	var max_hp := int(player.get("max_hp", player.get("stats", {}).get("hp", 1)))
+	var before := int(player.get("hp", 0))
+	if before >= max_hp and (player.get("statuses", []) as Array).is_empty():
+		_append("TEST HEAL: already full and clear.")
+		return
+	player["hp"] = maxi(1, max_hp)
+	player["statuses"] = []
+	GameState.set_companion(player)
+	_append("TEST HEAL: restored to full HP (%d → %d) and cleared statuses." % [before, max_hp])
+	_refresh()
 
 func _finish_player_action_turn() -> void:
 	if int(player.get("hp", 0)) > 0 and int(enemy.get("hp", 0)) > 0:
