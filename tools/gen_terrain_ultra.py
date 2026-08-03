@@ -12,7 +12,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
-TILES = Path("/workspace/assets/tiles")
+_REPO = Path(__file__).resolve().parents[1]
+TILES = _REPO / "assets" / "tiles"
 TILES.mkdir(parents=True, exist_ok=True)
 SIZE = 256  # was 96 — ~2.7× linear / ~7× pixels, plus quality leap
 
