@@ -5,7 +5,7 @@ You bond with **one** companion for the entire run. Defeat enemies and choose to
 
 ## MVP Features
 
-- 5 starters (2 unlocked by default; more via Evolution Tokens) + Basilisk (evolves at Lv 8)
+- 5 starters (2 unlocked by default; more via Evolution Tokens) + Gnome (evolves at Lv 8); Blazen also evolves at Lv 8
 - Pokémon-style grid overworld with **5 dungeon floors per region**
 - Random grass encounters, Alpha variants, turn-based combat
 - Absorb / Leave with independent rolls (stats, abilities, elements, mutations)
@@ -72,5 +72,5 @@ Adding a creature: append an entry in `data/creatures.json` with stats, families
 
 - Each region has **5 dungeon floors**. Floors 1–4 use stairs to descend; Floor 5 holds the region boss.
 - Encounter levels and wild pressure rise with region index, floor depth, and bosses defeated.
-- Basilisk evolves into Dread Basilisk at companion level 8.
+- Blazen evolves into Blazen Ninja at Lv 8; Gnome evolves into Gnome Mean at Lv 8.
 - Offline single-player; save seams kept simple for future multiplayer.
