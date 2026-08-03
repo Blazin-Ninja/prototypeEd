@@ -1,0 +1,90 @@
+{
+  "tokens": {
+    "on_lose": 1,
+    "on_win": 5,
+    "per_region_cleared": 1
+  },
+  "unlocks": [
+    {
+      "id": "starter_tide_fin",
+      "name": "Unlock Beaver Weaver",
+      "description": "Add Beaver Weaver to starter selection.",
+      "cost": 0,
+      "type": "starter",
+      "payload": {"starter_id": "tide_fin"},
+      "default_owned": true
+    },
+    {
+      "id": "starter_ember_pup",
+      "name": "Unlock Blazen Mouse",
+      "description": "Add Blazen Mouse to starter selection.",
+      "cost": 0,
+      "type": "starter",
+      "payload": {"starter_id": "ember_pup"},
+      "default_owned": true
+    },
+    {
+      "id": "starter_sproutling",
+      "name": "Unlock Willow Tree",
+      "description": "Add Willow Tree to starter selection.",
+      "cost": 3,
+      "type": "starter",
+      "payload": {"starter_id": "sproutling"},
+      "default_owned": false
+    },
+    {
+      "id": "starter_gale_hatch",
+      "name": "Unlock SophaPeya",
+      "description": "Add SophaPeya to starter selection.",
+      "cost": 5,
+      "type": "starter",
+      "payload": {"starter_id": "gale_hatch"},
+      "default_owned": false
+    },
+    {
+      "id": "starter_volt_cub",
+      "name": "Unlock Thunder Up",
+      "description": "Add Thunder Up to starter selection.",
+      "cost": 5,
+      "type": "starter",
+      "payload": {"starter_id": "volt_cub"},
+      "default_owned": false
+    },
+    {
+      "id": "starter_basilisk",
+      "name": "Unlock Toxie Bane",
+      "description": "Add Toxie Bane to starter selection. Evolves into Dread Basilisk at Lv 8.",
+      "cost": 4,
+      "type": "starter",
+      "payload": {"starter_id": "basilisk"},
+      "default_owned": true
+    },
+    {
+      "id": "alpha_rate_1",
+      "name": "Alpha Sense I",
+      "description": "Increase Alpha spawn chance (+1%).",
+      "cost": 4,
+      "type": "alpha_rate",
+      "payload": {"bonus": 0.01},
+      "default_owned": false
+    },
+    {
+      "id": "starting_passive_tough",
+      "name": "Tough Bond",
+      "description": "Start runs with +5 max HP.",
+      "cost": 3,
+      "type": "starting_passive",
+      "payload": {"stat": "hp", "bonus": 5},
+      "default_owned": false
+    },
+    {
+      "id": "absorb_odds_1",
+      "name": "DNA Affinity I",
+      "description": "Slightly better absorption success odds.",
+      "cost": 6,
+      "type": "absorb_bonus",
+      "payload": {"multiplier": 1.1},
+      "default_owned": false
+    }
+  ]
+}

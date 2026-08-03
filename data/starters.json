@@ -1,0 +1,4 @@
+{
+  "starters": ["ember_pup", "tide_fin", "sproutling", "gale_hatch", "volt_cub", "basilisk"],
+  "unlock_order": ["ember_pup", "tide_fin", "sproutling", "gale_hatch", "volt_cub", "basilisk"]
+}

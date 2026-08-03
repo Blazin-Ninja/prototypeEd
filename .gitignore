@@ -1,0 +1,15 @@
+# Ignore generated Godot files
+.godot/
+*.translation
+export/
+builds/
+*.apk
+!releases/*.apk
+*.aab
+*.so
+.import/
+android/
+*.pyc
+__pycache__/
+.DS_Store
+*.tmp
