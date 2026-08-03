@@ -133,3 +133,38 @@ static func apply_encounter_level(creature: Dictionary, level: int) -> void:
 	creature["xp"] = 0
 	CreatureFactory.apply_stat_cap(creature)
 	creature["hp"] = int(creature.get("max_hp", creature.get("hp", 1)))
+
+static func debug_set_level(companion: Dictionary, target: int) -> Dictionary:
+	## Testing cheat: raise companion to target level with correct bonuses + evolution.
+	## Increase-only; does not rebuild downward.
+	ensure_fields(companion)
+	var before := int(companion.get("level", 1))
+	var to := clampi(target, 1, MAX_LEVEL)
+	var logs: Array = []
+	if to <= before:
+		return {
+			"levels_gained": 0,
+			"level": before,
+			"xp": int(companion.get("xp", 0)),
+			"evolved": false,
+			"evolve_log": "",
+			"logs": logs
+		}
+	apply_encounter_level(companion, to)
+	logs.append("%s reached Lv %d!" % [str(companion.get("name", "Companion")), int(companion["level"])])
+	var evo := EvolutionSystem.try_evolve(companion)
+	if bool(evo.get("evolved", false)):
+		logs.append(str(evo.get("log", "Evolution!")))
+	return {
+		"levels_gained": int(companion.get("level", 1)) - before,
+		"level": int(companion.get("level", 1)),
+		"xp": int(companion.get("xp", 0)),
+		"evolved": bool(evo.get("evolved", false)),
+		"evolve_log": str(evo.get("log", "")),
+		"logs": logs
+	}
+
+static func debug_grant_levels(companion: Dictionary, n: int) -> Dictionary:
+	## Testing cheat: grant n levels from the companion's current level.
+	ensure_fields(companion)
+	return debug_set_level(companion, int(companion.get("level", 1)) + maxi(0, n))

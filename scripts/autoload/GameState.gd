@@ -230,6 +230,16 @@ func heal_companion_full() -> void:
 	set_companion(c)
 	autosave()
 
+func debug_level_companion(target: int) -> Dictionary:
+	## Testing cheat: set companion to an arbitrary level (increase-only).
+	var c: Dictionary = get_companion()
+	if c.is_empty():
+		return {"levels_gained": 0, "level": 1, "evolved": false, "evolve_log": "", "logs": []}
+	var res := LevelSystem.debug_set_level(c, target)
+	set_companion(c)
+	autosave()
+	return res
+
 func move_player(to: Vector2) -> void:
 	run["player_pos"] = {"x": to.x, "y": to.y}
 	run["steps"] = int(run.get("steps", 0)) + 1

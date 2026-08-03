@@ -25,7 +25,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_top = 88.0
-offset_bottom = -200.0
+offset_bottom = -360.0
 clip_contents = true
 
 [node name="MapDraw" type="Control" parent="MapArea"]
@@ -135,7 +135,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -168.0
-offset_top = -210.0
+offset_top = -360.0
 offset_right = -16.0
 offset_bottom = -24.0
 theme_override_constants/separation = 10
@@ -150,6 +150,18 @@ custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 1, 0.7, 1)
 text = "HEAL (Test)"
+
+[node name="LevelUpBtn" type="Button" parent="HUD/Buttons"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 1, 0.7, 1)
+text = "+1 Lv (Test)"
+
+[node name="MaxLvBtn" type="Button" parent="HUD/Buttons"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 1, 0.7, 1)
+text = "Max Lv (Test)"
 
 [node name="BBtn" type="Button" parent="HUD/Buttons"]
 custom_minimum_size = Vector2(0, 52)

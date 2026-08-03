@@ -1,5 +1,5 @@
 extends Control
-## Continuous overworld with virtual joystick, visible wilds, and test heal.
+## Continuous overworld with virtual joystick, visible wilds, and test cheats.
 
 const TILE := 96.0 ## larger terrain presence for ultra tiles
 const GFX_SCALE := 1.35
@@ -10,13 +10,14 @@ const CONTACT_DIST := 0.85
 const SAVE_INTERVAL := 1.25
 const WILD_SPEED := 1.05
 const DEFAULT_WILD_COUNT := 6
-const TEST_MODE := true ## Infinite heal + easier testing aids.
+const TEST_MODE := true ## Infinite heal + level-up testing aids.
 const MINIMAP_REVEAL_RADIUS := 3
 const FOG_PURPLE := Color(0.28, 0.08, 0.42, 0.92)
 const FOG_PURPLE_EDGE := Color(0.42, 0.16, 0.58, 0.55)
 const AppTheme = preload("res://scripts/ui/AppTheme.gd")
 const TileArt = preload("res://scripts/util/TileArt.gd")
 const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
+const LevelSystem = preload("res://scripts/domain/LevelSystem.gd")
 
 @onready var map_draw: MapCanvas = $MapArea/MapDraw
 @onready var minimap: MapCanvas = $HUD/Minimap
@@ -27,6 +28,8 @@ const DifficultySystem = preload("res://scripts/domain/DifficultySystem.gd")
 @onready var region_list: VBoxContainer = $RegionPanel/Margin/VBox/List
 @onready var joystick: VirtualJoystick = $HUD/Joystick
 @onready var heal_btn: Button = $HUD/Buttons/HealBtn
+@onready var level_up_btn: Button = $HUD/Buttons/LevelUpBtn
+@onready var max_lv_btn: Button = $HUD/Buttons/MaxLvBtn
 
 var _map: Dictionary = {}
 var _pos: Vector2 = Vector2(1.5, 14.5)
@@ -59,7 +62,11 @@ func _ready() -> void:
 	BossSprites.ensure_loaded()
 	region_panel.visible = false
 	heal_btn.visible = TEST_MODE
+	level_up_btn.visible = TEST_MODE
+	max_lv_btn.visible = TEST_MODE
 	heal_btn.pressed.connect(_test_heal)
+	level_up_btn.pressed.connect(_test_level_up)
+	max_lv_btn.pressed.connect(_test_max_level)
 	# Paint via MapCanvas._draw — never rely on external draw-signal painting.
 	map_draw.paint = Callable(self, "_paint_world")
 	minimap.paint = Callable(self, "_paint_minimap")
@@ -100,6 +107,28 @@ func _test_heal() -> void:
 	_refresh_hud()
 	message.text = "TEST HEAL — companion fully restored."
 	GameState.autosave()
+
+func _test_level_up() -> void:
+	var c: Dictionary = GameState.get_companion()
+	var cur := int(c.get("level", 1))
+	var res: Dictionary = GameState.debug_level_companion(cur + 1)
+	_refresh_hud()
+	message.text = _format_debug_level_message(res)
+
+func _test_max_level() -> void:
+	var res: Dictionary = GameState.debug_level_companion(LevelSystem.MAX_LEVEL)
+	_refresh_hud()
+	message.text = _format_debug_level_message(res)
+
+func _format_debug_level_message(res: Dictionary) -> String:
+	if int(res.get("levels_gained", 0)) <= 0:
+		return "TEST LEVEL — already Lv %d." % int(res.get("level", 1))
+	var msg := "TEST LEVEL — Lv %d." % int(res.get("level", 1))
+	if bool(res.get("evolved", false)):
+		var evo_log := str(res.get("evolve_log", ""))
+		if evo_log != "":
+			msg += " " + evo_log
+	return msg
 
 func _load_region() -> void:
 	var region := GameState.current_region()
